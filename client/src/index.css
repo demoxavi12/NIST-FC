@@ -1,111 +1,115 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import 'tailwindcss';
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/*
+ * NIST FC design tokens (docs/UI_DESIGN.md §4–§11, §64, §76).
+ *
+ * These tokens are the single source of truth for the visual system.
+ * Components use the generated utilities (bg-primary, text-ink, rounded-md…)
+ * and must not hard-code colours, radii or shadows.
+ */
+@theme {
+  /* ---- Colour ----------------------------------------------------------
+   * Tailwind's default palette is removed so only documented colours exist.
+   */
+  --color-*: initial;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-primary: #0b0f14;
+  --color-secondary: #161c24;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f5f7;
+  --color-ink: #111827; /* Primary text */
+  --color-ink-muted: #667085; /* Secondary text */
+  --color-border: #e5e7eb;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  /*
+   * TEMPORARY ACCENT — neutral blue placeholder.
+   * This is NOT official NIST University branding. Replace this single value
+   * once the official NIST accent has been verified (docs/UI_DESIGN.md §4).
+   * Every accent-derived colour below follows it automatically.
+   */
+  --color-accent: #1d4ed8;
+  --color-accent-strong: color-mix(in oklab, var(--color-accent) 82%, black);
+
+  /* Text and borders on dark sections (hero, footer, admin top bar). */
+  --color-on-dark: #ffffff;
+  --color-on-dark-muted: color-mix(in oklab, #ffffff 70%, var(--color-primary));
+  --color-on-dark-border: color-mix(in oklab, #ffffff 14%, var(--color-primary));
+
+  /* ---- Typography ------------------------------------------------------
+   * Inter is the only font family (loaded from Google Fonts in index.html),
+   * with a system sans-serif fallback.
+   */
+  --font-*: initial;
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Display heading: large, bold, tight (UI_DESIGN.md §7). */
+  --text-display: clamp(2.75rem, 1.5rem + 5vw, 5rem);
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.03em;
+
+  /* ---- Spacing ---------------------------------------------------------
+   * 4px base unit. The documented scale maps to Tailwind steps:
+   * 4=1 · 8=2 · 12=3 · 16=4 · 24=6 · 32=8 · 48=12 · 64=16 · 80=20 · 96=24 · 120=30
+   */
+  --spacing: 0.25rem;
+
+  /* ---- Container -------------------------------------------------------
+   * max-w-page = 1280px. Horizontal padding (16 / 24 / 32px) lives in
+   * components/common/Container.jsx.
+   */
+  --container-page: 80rem;
+
+  /* ---- Radius (moderate, not "soft SaaS") ------------------------------ */
+  --radius-*: initial;
+  --radius-sm: 0.5rem; /* 8px */
+  --radius-md: 0.75rem; /* 12px */
+  --radius-lg: 1rem; /* 16px */
+
+  /* ---- Shadow (subtle only) -------------------------------------------- */
+  --shadow-*: initial;
+  --shadow-sm: 0 1px 2px 0 rgb(11 15 20 / 0.06);
+  --shadow-md:
+    0 2px 8px -2px rgb(11 15 20 / 0.1), 0 1px 2px 0 rgb(11 15 20 / 0.06);
+
+  /* ---- Motion (150–400ms, UI_DESIGN.md §64) ---------------------------- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: var(--ease-standard);
+}
+
+/* Dark section surface: sets background, text and a visible focus ring colour. */
+@utility surface-dark {
+  background-color: var(--color-primary);
+  color: var(--color-on-dark);
+  --focus-ring-color: var(--color-on-dark);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  /* Visible keyboard focus everywhere; white ring inside dark sections. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring-color, var(--color-accent));
+    outline-offset: 2px;
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
-}
-
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }
