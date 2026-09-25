@@ -189,6 +189,8 @@ Displays:
 
 Admins can manage founder information and display order.
 
+V1 has no public founder detail route (such as `/founders/:slug`). All founder information is presented on the Founders page. The API still provides `GET /api/founders/:slug` (see `API.md` §18).
+
 ## 11. About
 
 Route:

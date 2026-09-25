@@ -168,8 +168,10 @@ Photo
 Name
 Position
 Batch
-Branch
+Branch (where appropriate)
 ```
+
+Branch is part of the player information and may be shown on the card where the layout allows it. The player profile always shows it. See `UI_DESIGN.md` §21.
 
 The design may take inspiration from football game cards but must have its own NIST FC visual identity.
 
@@ -613,7 +615,8 @@ Administrators can:
 - Associate players
 - Add tags
 - Publish/unpublish memories
-- Change memory order if required
+
+Memories are always ordered by `date` descending (latest → oldest). V1 has no manual memory-ordering field; to change where a memory appears, the administrator edits its date.
 
 ### Add/Edit Memory
 

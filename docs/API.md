@@ -31,25 +31,37 @@ The API follows a RESTful architecture.
 
 # 2. Base URL
 
-Development:
-
-```text
-http://localhost:5000/api
-```
-
-Production:
-
-```text
-/api
-```
-
-The exact production backend URL will depend on deployment.
-
 All API endpoints are prefixed with:
 
 ```text
 /api
 ```
+
+### Frontend base path
+
+The frontend always calls the API using the relative base path:
+
+```text
+/api
+```
+
+in both development and production. Frontend components must not hard-code a backend host such as `http://localhost:5000`.
+
+### Development
+
+The Express server listens locally on `PORT` (default `5000`):
+
+```text
+http://localhost:5000/api
+```
+
+The Vite dev server proxies `/api` requests to this backend. The proxy target is configured only in `client/vite.config.js`. Browser requests therefore stay same-origin during development.
+
+### Production
+
+The frontend continues to use `/api`. The deployment must route `/api` to the backend, for example through a hosting rewrite/proxy.
+
+The exact backend host depends on the deployment provider, which has not been selected yet.
 
 ---
 
@@ -101,7 +113,7 @@ API responses should use a consistent JSON structure.
 
 ## Successful Response
 
-Example:
+Every successful response with a body uses:
 
 ```json
 {
@@ -111,7 +123,9 @@ Example:
 }
 ```
 
-For lists:
+`data` is always present. When there is nothing to return (for example logout or reorder), it is `null`.
+
+For lists, `data` is an array and a `pagination` object is added:
 
 ```json
 {
@@ -126,7 +140,7 @@ For lists:
 
 # 5. Error Response
 
-Errors should use:
+Every error response uses:
 
 ```json
 {
@@ -136,13 +150,15 @@ Errors should use:
 }
 ```
 
-For validation errors:
+`error` is always present. It is `null` unless there is safe, structured detail the client needs.
+
+For validation errors, `error` contains field-level messages:
 
 ```json
 {
   "success": false,
   "message": "Validation failed",
-  "errors": {
+  "error": {
     "name": "Name is required",
     "position": "Position is required"
   }
@@ -165,9 +181,8 @@ The API should use standard HTTP status codes.
 
 | Status | Meaning                                   |
 | -----: | ----------------------------------------- |
-|  `200` | Successful request                        |
+|  `200` | Successful request, including deletions   |
 |  `201` | Resource created                          |
-|  `204` | Successful deletion with no response body |
 |  `400` | Bad request / validation error            |
 |  `401` | Authentication required/failed            |
 |  `403` | Insufficient permissions                  |
@@ -175,6 +190,16 @@ The API should use standard HTTP status codes.
 |  `409` | Conflict                                  |
 |  `422` | Unprocessable entity when appropriate     |
 |  `500` | Internal server error                     |
+
+DELETE endpoints return `200` with the standard response body (see §4), not `204`:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Resource deleted successfully"
+}
+```
 
 ---
 
@@ -269,6 +294,7 @@ Authentication required.
 ```json
 {
   "success": true,
+  "data": null,
   "message": "Logout successful"
 }
 ```
@@ -295,7 +321,8 @@ Authentication required.
       "email": "admin@example.com",
       "role": "admin"
     }
-  }
+  },
+  "message": "Authenticated admin retrieved successfully"
 }
 ```
 
@@ -461,6 +488,18 @@ rather than deletion.
 
 The backend must handle existing memory references safely before permanent deletion.
 
+### Success
+
+HTTP `200`:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Resource deleted successfully"
+}
+```
+
 ---
 
 # 12. Public Memory API
@@ -620,6 +659,18 @@ Authentication required.
 
 Associated Cloudinary images should be cleaned up appropriately.
 
+### Success
+
+HTTP `200`:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Resource deleted successfully"
+}
+```
+
 ---
 
 # 14. Memory Photo Management
@@ -738,6 +789,18 @@ Deletes a timeline event.
 
 Deleting a timeline event must not automatically delete its associated memory.
 
+### Success
+
+HTTP `200`:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Resource deleted successfully"
+}
+```
+
 ---
 
 # 17. Timeline Reordering
@@ -776,6 +839,7 @@ PATCH /api/timeline/reorder
 ```json
 {
   "success": true,
+  "data": null,
   "message": "Timeline reordered successfully"
 }
 ```
@@ -810,7 +874,9 @@ displayOrder ascending
 
 ## GET `/api/founders/:slug`
 
-Returns a founder by slug.
+Returns a published founder by slug.
+
+This endpoint is part of the V1 API, but V1 has no public founder detail page. The frontend shows all founder information on the `/founders` page, which uses `GET /api/founders`. See `SITE_MAP.md` §10.
 
 ---
 
@@ -858,6 +924,18 @@ Deletes a founder.
 
 Associated Cloudinary images should be cleaned up appropriately.
 
+### Success
+
+HTTP `200`:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Resource deleted successfully"
+}
+```
+
 ---
 
 # 20. Founder Reordering
@@ -890,6 +968,7 @@ PATCH /api/founders/reorder
 ```json
 {
   "success": true,
+  "data": null,
   "message": "Founders reordered successfully"
 }
 ```
@@ -1052,6 +1131,18 @@ Authentication required.
 ```
 
 The backend deletes the corresponding Cloudinary asset.
+
+### Success
+
+HTTP `200`:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Resource deleted successfully"
+}
+```
 
 The endpoint must never expose Cloudinary credentials to the frontend.
 
@@ -1452,25 +1543,52 @@ The API must:
 
 # 38. Environment Variables
 
-The backend will use environment variables for secrets and configuration.
+The backend uses environment variables for secrets and configuration.
 
-Example:
+This is the complete V1 list. It is kept identical in `API.md`, `AUTH.md` §46, and `CLAUDE.md` §26.
 
 ```text
+# Server
+NODE_ENV=
 PORT=
+
+# Database
 MONGODB_URI=
+
+# Authentication
 JWT_SECRET=
 JWT_EXPIRES_IN=
+COOKIE_NAME=
+COOKIE_SECURE=
+COOKIE_SAME_SITE=
+
+# CORS / deployment
 CLIENT_URL=
 
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+
+# Upload limits
+MAX_IMAGE_SIZE_MB=
+MAX_MEMORY_IMAGES=
+
+# Initial admin seed (used only by the admin seed script)
+ADMIN_NAME=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 ```
+
+`NODE_ENV` must be either `development` or `production`.
+
+All of these belong to the backend (`server/.env`).
+
+The frontend requires no environment variables in V1 because it calls the relative `/api` base path (see §2).
 
 `.env` must never be committed to Git.
 
-Only `.env.example` should be committed.
+Only `.env.example` files, containing variable names without real values, should be committed.
 
 ---
 
@@ -1523,6 +1641,7 @@ Response:
 ```json
 {
   "success": true,
+  "data": null,
   "message": "NIST FC API is running"
 }
 ```
@@ -1540,7 +1659,8 @@ Unknown API routes should return:
 ```json
 {
   "success": false,
-  "message": "API route not found"
+  "message": "API route not found",
+  "error": null
 }
 ```
 

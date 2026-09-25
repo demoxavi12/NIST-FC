@@ -145,13 +145,19 @@ Do not add speculative features.
 
 ```text
 React
+React Compiler (babel-plugin-react-compiler via @rolldown/plugin-babel)
 Vite
 JavaScript
 Tailwind CSS
 React Router
 Axios
 Lucide React
+Inter (Google Fonts)
 ```
+
+The React Compiler is intentionally kept. It is configured in `client/vite.config.js`. Do not remove it without approval.
+
+The frontend calls the API through the relative base path `/api`. In development, the Vite dev server proxies `/api` to the Express backend, and the proxy is configured only in `client/vite.config.js`. Do not hard-code backend hosts such as `http://localhost:5000` in frontend code. See `docs/API.md` §2.
 
 ## Backend
 
@@ -383,6 +389,8 @@ Memories are displayed:
 Latest → Oldest
 ```
 
+Ordering is strictly by `date` descending. V1 has no manual memory-ordering field, and admins cannot reorder memories.
+
 There is no separate Photo collection in V1.
 
 A memory contains its complete gallery.
@@ -534,14 +542,21 @@ Successful responses should generally use:
 }
 ```
 
+`data` is always present. It is `null` when there is nothing to return. List responses also include `pagination`.
+
+DELETE endpoints return HTTP `200` with `data: null` and a message such as `"Resource deleted successfully"`. `204` is not used.
+
 Errors should generally use:
 
 ```json
 {
   "success": false,
-  "message": "..."
+  "message": "...",
+  "error": null
 }
 ```
+
+`error` is always present. It is `null` unless there is safe structured detail, such as field-level validation messages. See `docs/API.md` §4–5.
 
 Do not create inconsistent response formats between resources without a reason.
 
@@ -577,6 +592,8 @@ docs/UI_DESIGN.md
 ```
 
 before implementing public UI.
+
+The V1 accent colour `#1D4ED8` is a **temporary placeholder, not official NIST branding**. Define it once as a design token and never hard-code it in components. V1 uses Inter only, loaded from Google Fonts. See `docs/UI_DESIGN.md` §4 and §6.
 
 The website should feel:
 
@@ -703,20 +720,46 @@ Secrets belong in `.env`.
 
 Never commit real secrets.
 
-`.env.example` may contain variable names without values.
+`.env.example` may contain variable names without values. `.gitignore` ignores `.env` and `.env.*` but explicitly allows `.env.example`.
 
-Examples:
+The complete V1 list is below. It is kept identical in `docs/API.md` §38 and `docs/AUTH.md` §46. All of these are backend variables (`server/.env`). The frontend needs none in V1.
 
 ```text
+# Server
+NODE_ENV=
+PORT=
+
+# Database
 MONGODB_URI=
+
+# Authentication
 JWT_SECRET=
 JWT_EXPIRES_IN=
+COOKIE_NAME=
+COOKIE_SECURE=
+COOKIE_SAME_SITE=
+
+# CORS / deployment
 CLIENT_URL=
 
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+
+# Upload limits
+MAX_IMAGE_SIZE_MB=
+MAX_MEMORY_IMAGES=
+
+# Initial admin seed (used only by the admin seed script)
+ADMIN_NAME=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 ```
+
+`NODE_ENV` must be either `development` or `production`.
+
+Do not introduce new environment variables without updating all three documents.
 
 ---
 

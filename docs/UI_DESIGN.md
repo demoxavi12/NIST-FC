@@ -107,9 +107,15 @@ Secondary Text
 Border
 #E5E7EB
 
-Accent
-NIST brand accent — to be finalized from official branding
+Accent (TEMPORARY)
+#1D4ED8
 ```
+
+### Temporary accent
+
+`#1D4ED8` is a **temporary neutral blue placeholder**. It is **not** official NIST University branding.
+
+It must be defined in exactly one place, as the accent design token (see §76), so that it can be replaced with the official NIST brand accent in a single change once that colour has been verified from official NIST branding/assets. Components must reference the token, never the hex value directly.
 
 The accent color should be used for:
 
@@ -160,34 +166,26 @@ The website should not be entirely dark.
 
 Typography should be modern, highly readable, and suitable for a sports/editorial website.
 
-Recommended font strategy:
+### V1 font decision
 
-### Headings
-
-Use a strong modern sans-serif.
-
-Possible choices:
-
-```text
-Inter
-Manrope
-Space Grotesk
-Plus Jakarta Sans
-```
-
-### Body
-
-Use:
+V1 uses a single font family for both headings and body text:
 
 ```text
 Inter
 ```
 
-or another highly readable sans-serif.
+Heading hierarchy is created through size, weight, line height, and letter spacing rather than a second typeface.
 
-The final font should be loaded efficiently and used consistently.
+### Font loading
 
-Avoid using more than two font families.
+Inter is loaded through **Google Fonts** in V1.
+
+- Load only the weights actually used.
+- Use `display=swap` and preconnect to the Google Fonts origins.
+- Provide a system sans-serif fallback stack.
+- Do not add an npm font package.
+
+The font family should be defined once as a design token (see §76) and used consistently.
 
 ---
 
@@ -626,7 +624,10 @@ Photo
 Name
 Position
 Batch
+Branch (where appropriate)
 ```
+
+Branch is part of the player information (see `FEATURES.md` §4.4). It may be shown on the card, typically alongside the batch, where the layout allows it. It can be omitted in very compact card contexts; the player profile always shows it.
 
 Example:
 
@@ -638,7 +639,7 @@ Example:
 ├──────────────────┤
 │ Rahul Das        │
 │ Midfielder       │
-│ Batch 2025       │
+│ Batch 2025 • CSE │
 └──────────────────┘
 ```
 
@@ -1820,11 +1821,13 @@ The UI will use:
 
 ```text
 React
+React Compiler (build-time, via Vite/Babel)
 Vite
 Tailwind CSS
 React Router
 Axios
 Lucide React
+Inter (Google Fonts)
 ```
 
 Additional dependencies should only be added when they solve a clear V1 requirement.

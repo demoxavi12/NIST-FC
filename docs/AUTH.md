@@ -329,7 +329,8 @@ Response:
 ```json id="x0gq3d"
 {
   "success": false,
-  "message": "Invalid email or password"
+  "message": "Invalid email or password",
+  "error": null
 }
 ```
 
@@ -385,6 +386,7 @@ Response:
 ```json id="z7u9pl"
 {
   "success": true,
+  "data": null,
   "message": "Logout successful"
 }
 ```
@@ -476,7 +478,8 @@ Response:
 ```json id="2jy3b4"
 {
   "success": false,
-  "message": "Authentication required"
+  "message": "Authentication required",
+  "error": null
 }
 ```
 
@@ -498,7 +501,8 @@ Response:
 ```json id="j6u2n3"
 {
   "success": false,
-  "message": "Authentication required"
+  "message": "Authentication required",
+  "error": null
 }
 ```
 
@@ -1065,7 +1069,8 @@ Instead:
 ```json id="v3v4zj"
 {
   "success": false,
-  "message": "Internal server error"
+  "message": "Internal server error",
+  "error": null
 }
 ```
 
@@ -1075,23 +1080,44 @@ Detailed errors may be logged server-side.
 
 # 46. Environment Variables
 
-Required security-related variables:
+This is the complete V1 list. It is kept identical in `API.md` §38 and `CLAUDE.md` §26.
 
 ```text id="a3s5n7"
+# Server
+NODE_ENV=
+PORT=
+
+# Database
 MONGODB_URI=
+
+# Authentication
 JWT_SECRET=
 JWT_EXPIRES_IN=
-
-CLIENT_URL=
-
 COOKIE_NAME=
 COOKIE_SECURE=
 COOKIE_SAME_SITE=
 
+# CORS / deployment
+CLIENT_URL=
+
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+
+# Upload limits
+MAX_IMAGE_SIZE_MB=
+MAX_MEMORY_IMAGES=
+
+# Initial admin seed (used only by the admin seed script)
+ADMIN_NAME=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 ```
+
+`NODE_ENV` must be either `development` or `production`.
+
+All of these are backend-only variables (`server/.env`).
 
 Example:
 
@@ -1112,7 +1138,10 @@ The actual production secret must be long, random, and unique.
 ```text id="j1u4aq"
 .env
 .env.*
+!.env.example
 ```
+
+The `!.env.example` exception is required because `.env.*` would otherwise also ignore the template.
 
 A safe template may be committed:
 
@@ -1120,18 +1149,7 @@ A safe template may be committed:
 .env.example
 ```
 
-Example:
-
-```text id="3x0q2z"
-PORT=
-MONGODB_URI=
-JWT_SECRET=
-JWT_EXPIRES_IN=
-CLIENT_URL=
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-```
+It lists the variable names from §46 with empty values.
 
 No real secrets should be placed inside `.env.example`.
 
