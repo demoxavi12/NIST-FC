@@ -1347,17 +1347,27 @@ Phase 2 creates no business models. Each model is created in the phase that intr
 
 Request validation with Joi starts in Phase 3.
 
-### Phase 3 — Authentication
+### Phase 3 — Authentication (backend)
 
 ```text
 Admin model
 bcrypt
 JWT
 HTTP-only cookie
-Auth middleware
-Login
+Auth middleware (requireAuth, requireRole)
+Login / logout / current admin endpoints
+Login rate limiting
+Admin seed script
+```
+
+### Phase 3B — Authentication (frontend)
+
+```text
+AuthContext (session via GET /api/auth/me)
+Admin login page
+Protected admin routes
 Logout
-Protected routes
+Expired-session redirect to /admin/login
 ```
 
 ### Phase 4 — Players

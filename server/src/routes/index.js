@@ -1,9 +1,16 @@
 import { Router } from 'express'
+import { createAuthRoutes } from './authRoutes.js'
 import healthRoutes from './healthRoutes.js'
 
-/** Mounted at /api. Resource routers are added here as each phase lands. */
-const router = Router()
+/**
+ * Builds the /api router. Created per app so each app instance has its own
+ * config and rate-limit state. Resource routers are added as each phase lands.
+ */
+export function createApiRouter(config) {
+  const router = Router()
 
-router.use('/health', healthRoutes)
+  router.use('/health', healthRoutes)
+  router.use('/auth', createAuthRoutes(config))
 
-export default router
+  return router
+}

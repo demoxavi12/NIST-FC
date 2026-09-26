@@ -1363,9 +1363,11 @@ The API should support role-based authorization.
 Example:
 
 ```text
-requireAdmin
-requireSuperAdmin
+requireAuth
+requireRole("superAdmin")
 ```
+
+These are the names used in `AUTH.md` §24. `requireAuth` protects every admin endpoint. `requireRole` restricts a route to specific roles and runs after `requireAuth`.
 
 V1 administrators can access normal content management.
 
