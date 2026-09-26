@@ -137,15 +137,16 @@ Minimum:
 8 characters
 ```
 
-Recommended:
+Required when an administrator is created:
 
 - At least 8 characters
 - Uppercase character
 - Lowercase character
 - Number
 - Special character
+- At most 72 bytes, because bcrypt ignores anything longer
 
-The backend should validate password strength during administrator creation/password changes.
+The backend validates password strength during administrator creation. In V1 that means the admin seed script (§55).
 
 ---
 
@@ -193,6 +194,8 @@ It must never be:
 - Included in frontend code
 - Included in API responses
 
+The secret must be at least 32 characters. The server refuses to start with the example value `change-this-in-production` (see §46).
+
 ---
 
 # 8. JWT Expiration
@@ -214,6 +217,8 @@ A reasonable V1 implementation may use:
 ```
 
 without implementing refresh tokens.
+
+`JWT_EXPIRES_IN` must use the format `<number><s|m|h|d>` (for example `30m`, `12h` or `1d`). The authentication cookie's `Max-Age` is derived from the same value, so the cookie and the token expire together.
 
 If long-lived sessions are required later, refresh-token authentication can be added as a separate feature.
 
@@ -272,6 +277,11 @@ COOKIE_NAME=nist_fc_token
 COOKIE_SECURE=true
 COOKIE_SAME_SITE=lax
 ```
+
+Accepted values:
+
+- `COOKIE_SECURE`: `true` or `false`. It must be `true` in production.
+- `COOKIE_SAME_SITE`: `lax` or `strict`. V1 uses `lax`. `none` is not accepted because it would require explicit CSRF protection (§39).
 
 The backend is responsible for setting and clearing the cookie.
 
@@ -360,7 +370,15 @@ Temporary request restriction
 
 This reduces brute-force attacks.
 
-The exact rate-limit values can be configured during implementation.
+V1 values:
+
+- 10 failed login attempts per 15 minutes per client IP.
+- Successful logins are not counted.
+- When the limit is reached, the API returns `429` with the standard error response.
+
+The limiter uses an in-memory store. It resets when the server restarts and is not shared between multiple server instances.
+
+In production the server trusts exactly one proxy hop (`trust proxy = 1`), so the client IP comes from the hosting proxy's `X-Forwarded-For` header. Revisit this if the deployment adds or removes a proxy.
 
 ---
 
@@ -1328,6 +1346,12 @@ The seed script should:
 3. Create the administrator.
 4. Refuse to create a duplicate account.
 5. Never print the password.
+
+Implementation (`server/scripts/seedAdmin.js`):
+
+- It needs only `MONGODB_URI` and `ADMIN_*`, and validates them first. The password must meet §5.
+- If an admin with `ADMIN_EMAIL` already exists, it changes nothing and exits successfully. It never updates an existing password.
+- It uses bcrypt cost 12.
 
 Example environment variables:
 

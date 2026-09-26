@@ -3,12 +3,22 @@ import { loadConfig } from '../src/config/env.js'
 
 export const CLIENT_URL = 'http://localhost:5173'
 
+/** Auth-related variables every valid config needs (docs/AUTH.md §46). */
+export const AUTH_ENV = Object.freeze({
+  JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
+  JWT_EXPIRES_IN: '1h',
+  COOKIE_NAME: 'nist_fc_token',
+  COOKIE_SECURE: 'false',
+  COOKIE_SAME_SITE: 'lax',
+})
+
 /** A valid development config; no MongoDB connection is made by the app. */
 export function testConfig(overrides = {}) {
   return loadConfig({
     NODE_ENV: 'development',
     MONGODB_URI: 'mongodb://127.0.0.1:27017/nist-fc-test',
     CLIENT_URL,
+    ...AUTH_ENV,
     ...overrides,
   })
 }
