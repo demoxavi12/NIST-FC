@@ -1,5 +1,6 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Outlet } from 'react-router'
 import RouteError from '../components/common/RouteError'
+import AuthProvider from '../context/AuthProvider'
 import AdminLayout from '../layouts/AdminLayout/AdminLayout'
 import PublicLayout from '../layouts/PublicLayout/PublicLayout'
 import RootLayout from '../layouts/RootLayout/RootLayout'
@@ -24,11 +25,13 @@ import AdminPlayerForm from '../pages/admin/Players/AdminPlayerForm'
 import AdminPlayers from '../pages/admin/Players/AdminPlayers'
 import AdminTimeline from '../pages/admin/Timeline/AdminTimeline'
 import AdminTimelineForm from '../pages/admin/Timeline/AdminTimelineForm'
+import RequireAuth from './RequireAuth'
 
 /**
  * Complete V1 route table (docs/SITE_MAP.md §19).
  *
- * Admin routes are unprotected until authentication is added in Phase 3.
+ * AuthProvider wraps only the admin routes, so public pages never check the
+ * session. RequireAuth protects everything under /admin except the login page.
  * Form pages serve both `new` and `:id/edit`; the `key` gives each route its
  * own component instance so form state never carries over between them.
  */
@@ -51,32 +54,46 @@ export const router = createBrowserRouter([
           { path: '*', element: <NotFound /> },
         ],
       },
-      { path: 'admin/login', element: <Login /> },
       {
-        path: 'admin',
-        element: <AdminLayout />,
+        element: (
+          <AuthProvider>
+            <Outlet />
+          </AuthProvider>
+        ),
         children: [
-          { index: true, element: <Dashboard /> },
-
-          { path: 'players', element: <AdminPlayers /> },
-          { path: 'players/new', element: <AdminPlayerForm key="new" /> },
-          { path: 'players/:id/edit', element: <AdminPlayerForm key="edit" /> },
-
-          { path: 'memories', element: <AdminMemories /> },
-          { path: 'memories/new', element: <AdminMemoryForm key="new" /> },
-          { path: 'memories/:id/edit', element: <AdminMemoryForm key="edit" /> },
-
-          { path: 'timeline', element: <AdminTimeline /> },
-          { path: 'timeline/new', element: <AdminTimelineForm key="new" /> },
-          { path: 'timeline/:id/edit', element: <AdminTimelineForm key="edit" /> },
-
-          { path: 'founders', element: <AdminFounders /> },
-          { path: 'founders/new', element: <AdminFounderForm key="new" /> },
-          { path: 'founders/:id/edit', element: <AdminFounderForm key="edit" /> },
-
+          { path: 'admin/login', element: <Login /> },
           {
-            path: '*',
-            element: <NotFound backTo="/admin" backLabel="Back to dashboard" />,
+            path: 'admin',
+            element: <RequireAuth />,
+            children: [
+              {
+                element: <AdminLayout />,
+                children: [
+                  { index: true, element: <Dashboard /> },
+
+                  { path: 'players', element: <AdminPlayers /> },
+                  { path: 'players/new', element: <AdminPlayerForm key="new" /> },
+                  { path: 'players/:id/edit', element: <AdminPlayerForm key="edit" /> },
+
+                  { path: 'memories', element: <AdminMemories /> },
+                  { path: 'memories/new', element: <AdminMemoryForm key="new" /> },
+                  { path: 'memories/:id/edit', element: <AdminMemoryForm key="edit" /> },
+
+                  { path: 'timeline', element: <AdminTimeline /> },
+                  { path: 'timeline/new', element: <AdminTimelineForm key="new" /> },
+                  { path: 'timeline/:id/edit', element: <AdminTimelineForm key="edit" /> },
+
+                  { path: 'founders', element: <AdminFounders /> },
+                  { path: 'founders/new', element: <AdminFounderForm key="new" /> },
+                  { path: 'founders/:id/edit', element: <AdminFounderForm key="edit" /> },
+
+                  {
+                    path: '*',
+                    element: <NotFound backTo="/admin" backLabel="Back to dashboard" />,
+                  },
+                ],
+              },
+            ],
           },
         ],
       },

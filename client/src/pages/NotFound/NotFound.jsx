@@ -1,4 +1,4 @@
-import ButtonLink from '../../components/common/ButtonLink'
+import Button from '../../components/common/Button'
 import Container from '../../components/common/Container'
 import usePageMeta from '../../hooks/usePageMeta'
 
@@ -21,9 +21,9 @@ function NotFound({ backTo = '/', backLabel = 'Back to home' }) {
         <p className="mt-4 max-w-xl text-lg text-ink-muted">
           The page you are looking for does not exist or has been moved.
         </p>
-        <ButtonLink to={backTo} className="mt-8">
+        <Button to={backTo} className="mt-8">
           {backLabel}
-        </ButtonLink>
+        </Button>
       </Container>
     </section>
   )
