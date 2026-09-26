@@ -1332,12 +1332,20 @@ Environment configuration
 
 ```text
 Express setup
+Environment validation
 MongoDB connection
-Models
-Error handling
-Validation
-Cloudinary
+Cloudinary configuration (no uploads)
+Security middleware (Helmet, CORS, JSON body limit)
+Request logging
+Central error handling
+404 handling
+Health endpoint
+Automated tests
 ```
+
+Phase 2 creates no business models. Each model is created in the phase that introduces its feature: Admin in Phase 3, Player in Phase 4, Memory in Phase 5, TimelineEvent in Phase 6, and Founder in Phase 7.
+
+Request validation with Joi starts in Phase 3.
 
 ### Phase 3 — Authentication
 

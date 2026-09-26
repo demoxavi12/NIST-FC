@@ -188,7 +188,9 @@ The API should use standard HTTP status codes.
 |  `403` | Insufficient permissions                  |
 |  `404` | Resource not found                        |
 |  `409` | Conflict                                  |
+|  `413` | Payload too large (request body limit)    |
 |  `422` | Unprocessable entity when appropriate     |
+|  `429` | Too many requests (rate limit, Phase 3)   |
 |  `500` | Internal server error                     |
 
 DELETE endpoints return `200` with the standard response body (see §4), not `204`:
