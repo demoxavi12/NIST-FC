@@ -1,6 +1,6 @@
 import { isRouteErrorResponse, useRouteError } from 'react-router'
 import usePageMeta from '../../hooks/usePageMeta'
-import ButtonLink from './ButtonLink'
+import Button from './Button'
 import Container from './Container'
 
 /** Router-level error boundary: a useful message instead of a blank page. */
@@ -27,9 +27,9 @@ function RouteError() {
             {detail}
           </pre>
         )}
-        <ButtonLink to="/" reloadDocument className="mt-8">
+        <Button to="/" reloadDocument className="mt-8">
           Back to home
-        </ButtonLink>
+        </Button>
       </Container>
     </main>
   )

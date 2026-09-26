@@ -16,6 +16,21 @@ const api = axios.create({
   headers: { Accept: 'application/json' },
 })
 
+let sessionExpiredHandler = null
+
+/**
+ * Registers the function called when a protected request returns 401
+ * (the admin session expired). AuthProvider registers it. Requests that expect
+ * 401 as a normal answer (login, /auth/me, logout) opt out with
+ * `{ skipSessionExpiry: true }`. Returns an unregister function.
+ */
+export function setSessionExpiredHandler(handler) {
+  sessionExpiredHandler = handler
+  return () => {
+    if (sessionExpiredHandler === handler) sessionExpiredHandler = null
+  }
+}
+
 /**
  * Normalise failures to the documented error shape
  * `{ success: false, message, error }` (docs/API.md §5) so the UI can rely on
@@ -24,6 +39,10 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 401 && !error.config?.skipSessionExpiry) {
+      sessionExpiredHandler?.()
+    }
+
     const body = error.response?.data
     const apiError = new Error(
       body?.message || 'Something went wrong. Please try again.',

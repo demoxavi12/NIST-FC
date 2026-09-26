@@ -20,4 +20,10 @@ export default defineConfig({
       },
     },
   },
+  // Vitest: component tests run in jsdom; the API layer is mocked in tests.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.js'],
+    restoreMocks: true,
+  },
 })
