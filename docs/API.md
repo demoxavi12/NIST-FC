@@ -431,7 +431,7 @@ Example:
 }
 ```
 
-`memories` lists memories associated with the player. It is always empty until memories are implemented (Phase 5).
+`memories` lists up to 12 published memories that include the player, latest first, as memory summaries (see `GET /api/memories`). `GET /api/memories?player=<id>` lists all of them.
 
 Unknown slugs return `404 Player not found`.
 
@@ -554,7 +554,7 @@ status = "former"
 
 rather than deletion.
 
-The backend removes the player from any memories that reference them (from Phase 5), deletes the player, then deletes the photo from Cloudinary. A failed image deletion is logged and does not fail the request.
+The backend removes the player from any memories that reference them, deletes the player, then deletes the photo from Cloudinary. A failed image deletion is logged and does not fail the request.
 
 ### Success
 
@@ -572,47 +572,52 @@ HTTP `200`:
 
 # 12. Public Memory API
 
-Public memory endpoints only return published memories.
+Public memory endpoints only return published memories. Drafts (`published = false`) are hidden from every public surface: lists, detail pages, previous/next navigation and player profiles.
 
 ---
 
 ## GET `/api/memories`
 
-Returns published memories.
+Returns published memories, 12 per page by default.
 
-Default order:
-
-```text
-Latest → Oldest
-```
+Order is strictly by `date`, latest first. Memories on the same day are ordered by ID (newest first), so the list and previous/next navigation always agree.
 
 ### Query Parameters
 
-```text
-page
-limit
-tag
-player
-```
+| Parameter | Rules                                              |
+| --------- | -------------------------------------------------- |
+| `page`    | Whole number ≥ 1 (default 1)                       |
+| `limit`   | 1–48 (default 12)                                  |
+| `tag`     | Optional; exact tag match (trimmed, lower-cased)   |
+| `player`  | Optional; a player ID — memories that include them |
 
 Example:
 
 ```text
 /api/memories?page=1&limit=12
-```
-
-Example:
-
-```text
+/api/memories?tag=tournament
 /api/memories?player=PLAYER_ID
 ```
 
 ### Response
 
+Each item is a summary (no gallery or players):
+
 ```json
 {
   "success": true,
-  "data": [],
+  "data": [
+    {
+      "id": "...",
+      "title": "Inter-College Final",
+      "slug": "inter-college-final",
+      "date": "2025-12-12T00:00:00.000Z",
+      "location": "NIST Ground",
+      "excerpt": "First 200 characters of the description…",
+      "coverImage": { "url": "https://res.cloudinary.com/...", "publicId": "nist-fc/memories/<memoryId>/..." },
+      "photoCount": 24
+    }
+  ],
   "pagination": {
     "page": 1,
     "limit": 12,
@@ -622,6 +627,8 @@ Example:
   "message": "Memories retrieved successfully"
 }
 ```
+
+V1 has no public memory search.
 
 ---
 
@@ -641,15 +648,33 @@ Example:
 {
   "success": true,
   "data": {
-    "memory": {},
-    "previous": {},
-    "next": {}
+    "memory": {
+      "id": "...",
+      "title": "...",
+      "slug": "...",
+      "description": "...",
+      "date": "2025-12-12T00:00:00.000Z",
+      "location": "...",
+      "coverImage": { "url": "...", "publicId": "..." },
+      "photos": [{ "url": "...", "publicId": "..." }],
+      "players": [
+        { "id": "...", "name": "...", "slug": "...", "photo": {}, "position": "...", "status": "former" }
+      ],
+      "tags": ["tournament"],
+      "published": true,
+      "createdAt": "...",
+      "updatedAt": "..."
+    },
+    "previous": { "title": "...", "slug": "...", "date": "...", "coverImage": {} },
+    "next": null
   },
   "message": "Memory retrieved successfully"
 }
 ```
 
-`previous` and `next` support chronological browsing through the memory archive.
+`previous` is the next **older** published memory and `next` the next **newer** one; either is `null` at the ends of the archive. `players` contains only the fields needed for display (never whole player documents), sorted by name.
+
+Unknown slugs and unpublished memories return `404 Memory not found`.
 
 ---
 
@@ -661,15 +686,34 @@ All endpoints require authentication.
 
 ## GET `/api/admin/memories`
 
-Returns memories for administration.
+Returns memories for administration, including drafts, latest first.
 
-Unlike the public endpoint, this may include:
+| Parameter   | Rules                                            |
+| ----------- | ------------------------------------------------ |
+| `page`      | Whole number ≥ 1 (default 1)                     |
+| `limit`     | 1–48 (default 20)                                |
+| `search`    | Optional; case-insensitive title search          |
+| `published` | Optional; `true` (published) or `false` (drafts) |
 
-```text
-published = false
+Items are summaries as in `GET /api/memories`, plus `published` and `updatedAt`.
+
+---
+
+## GET `/api/admin/memories/:id`
+
+Returns one memory by ID (published or draft) in the same shape as the public detail `memory`, for the edit form.
+
+```json
+{
+  "success": true,
+  "data": {
+    "memory": {}
+  },
+  "message": "Memory retrieved successfully"
+}
 ```
 
-Authentication required.
+Unknown IDs return `404 Memory not found`.
 
 ---
 
@@ -677,31 +721,48 @@ Authentication required.
 
 Creates a memory.
 
-Because a memory can contain multiple images, the endpoint uses:
+### Request
 
-```text
-multipart/form-data
-```
+`multipart/form-data`:
 
-Possible fields:
+| Field         | Required | Rules                                                                  |
+| ------------- | -------- | ---------------------------------------------------------------------- |
+| `title`       | Yes      | 1–150 characters                                                       |
+| `date`        | Yes      | Calendar day `YYYY-MM-DD`                                              |
+| `description` | No       | Plain text, max 5000 characters                                        |
+| `location`    | No       | Max 150 characters                                                     |
+| `players`     | No       | JSON array of player IDs, max 100 (current and former players)         |
+| `tags`        | No       | JSON array, max 20; each trimmed, lower-cased, 1–30 characters, unique |
+| `published`   | No       | `true` or `false` (default `false`: new memories are drafts)           |
+| `coverImage`  | Yes      | One JPEG, PNG or WEBP file, at most `MAX_IMAGE_SIZE_MB`                |
+| `photos`      | No       | Up to `MAX_MEMORY_IMAGES` gallery files per request (default 20)       |
 
-```text
-title
-description
-date
-location
-players
-tags
-published
-coverImage
-photos
-```
+Array fields are sent as JSON strings because the request is multipart (for example `players=["64b…","64c…"]`). Duplicate players and tags are removed.
+
+The server generates the `slug` from the title (`inter-college-final`, then `inter-college-final-2`, …). It never changes afterwards, even if the title does.
+
+The date is a calendar day stored as `00:00 UTC` and displayed without any time-zone shift.
+
+Images are uploaded to Cloudinary in the memory's own folder `nist-fc/memories/<memoryId>/` with random public IDs, stored at most 1600×1600. Uploads are all-or-nothing: if any image or the save fails, every image uploaded by the request is deleted.
+
+### Success
+
+HTTP `201` with `data.memory` (the full memory) and the message `Memory created successfully`.
+
+### Errors
+
+| Status | Cause                                                                                                                                                  |
+| -----: | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|  `400` | Invalid fields, missing cover (`error.coverImage`), unknown players (`error.players`), more than 100 photos (`error.photos`), or unsupported file type |
+|  `401` | Not authenticated                                                                                                                                      |
+|  `413` | An image larger than `MAX_IMAGE_SIZE_MB`, or more than `MAX_MEMORY_IMAGES` photos in one request                                                       |
+|  `502` | Cloudinary rejected or failed an upload (`Image upload failed`)                                                                                        |
 
 ---
 
 ## PATCH `/api/memories/:id`
 
-Updates a memory.
+Updates a memory. Published memories remain fully editable.
 
 Possible fields:
 
@@ -715,17 +776,36 @@ tags
 published
 coverImage
 photos
+removePhotos
+expectedUpdatedAt
 ```
+
+Only supplied fields are changed. At least one field, photo or cover image is required.
+
+- `players` and `tags` replace the whole list.
+- `coverImage` replaces the cover. The cover is separate from the gallery and does not need to appear in it.
+- `photos` are **appended** to the gallery, in upload order. V1 has no gallery reordering.
+- `removePhotos` is a JSON array of gallery `publicId`s to remove; each must belong to this memory.
+- A memory holds at most **100** gallery photos; the gallery may be empty.
+- `expectedUpdatedAt` is the `updatedAt` the client last loaded. If the memory has changed since, the request fails with `409 This memory was changed by someone else. Reload and try again.` and any images it uploaded are deleted. Concurrent saves are also detected by the document version (optimistic concurrency) and return `409`.
+
+Send `multipart/form-data` when uploading images, or JSON otherwise (for example `{ "published": true }`).
+
+Replaced covers and removed photos are deleted from Cloudinary only after the memory is saved; a failed deletion is logged and does not fail the request.
+
+The admin form uploads galleries in batches of 3 photos per request, sending `expectedUpdatedAt` with each request and `published` with the last one, so a memory is never published with half its gallery. If a batch fails, the memory is kept and the remaining photos can be retried.
+
+Errors are the same as for `POST`, plus `404 Memory not found` and `409` (stale edit).
 
 ---
 
 ## DELETE `/api/memories/:id`
 
-Permanently deletes a memory.
+Permanently deletes a memory. To hide a memory instead, unpublish it.
 
 Authentication required.
 
-Associated Cloudinary images should be cleaned up appropriately.
+The backend deletes the memory document first, then its cover and gallery images from Cloudinary, then the folder `nist-fc/memories/<memoryId>`. Failed image or folder deletions are logged and do not fail the request.
 
 ### Success
 
@@ -735,7 +815,7 @@ HTTP `200`:
 {
   "success": true,
   "data": null,
-  "message": "Resource deleted successfully"
+  "message": "Memory deleted successfully"
 }
 ```
 
@@ -743,15 +823,15 @@ HTTP `200`:
 
 # 14. Memory Photo Management
 
-A memory can contain:
+A memory contains:
 
 ```text
-1 cover image
+1 cover image (required, stored separately)
 +
-multiple gallery images
+0–100 gallery images (in upload order)
 ```
 
-The backend should store:
+The backend stores:
 
 ```text
 url
@@ -762,7 +842,7 @@ for every image.
 
 The frontend should never directly modify MongoDB image references.
 
-Image changes must go through the backend.
+Image changes go through `POST`/`PATCH` on `/api/memories` (upload `coverImage`/`photos`, remove with `removePhotos`).
 
 ---
 
@@ -1053,6 +1133,8 @@ The frontend should not contain Cloudinary API secrets.
 
 ---
 
+In V1, images are uploaded with the resource they belong to (`POST`/`PATCH` on players and memories), never through standalone upload endpoints. The standalone endpoints in §22–§23 and `/api/uploads` in §28 are not implemented in V1.
+
 ## Upload Flow
 
 ```text
@@ -1313,6 +1395,7 @@ GET    /api/memories
 GET    /api/memories/:slug
 
 GET    /api/admin/memories
+GET    /api/admin/memories/:id
 POST   /api/memories
 PATCH  /api/memories/:id
 DELETE /api/memories/:id
@@ -1653,7 +1736,7 @@ ADMIN_PASSWORD=
 
 `NODE_ENV` must be either `development` or `production`.
 
-The Cloudinary variables are required at startup in every environment, because player photos are required. `MAX_IMAGE_SIZE_MB` is optional: default 5, at most 10 (Cloudinary's free-plan image limit).
+The Cloudinary variables are required at startup in every environment, because player photos are required. `MAX_IMAGE_SIZE_MB` is optional: default 5, at most 10 (Cloudinary's free-plan image limit). `MAX_MEMORY_IMAGES` is optional: the maximum number of gallery photos accepted in **one** memory upload request (default 20, 1–50). It is not the total per memory, which is fixed at 100 photos.
 
 All of these belong to the backend (`server/.env`).
 

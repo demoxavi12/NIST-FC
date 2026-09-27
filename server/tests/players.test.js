@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import { createApp } from '../src/app.js'
 import Admin from '../src/models/Admin.js'
+import Memory from '../src/models/Memory.js'
 import Player from '../src/models/Player.js'
 import { cloudinaryService } from '../src/services/cloudinaryService.js'
 import { buildPlayerFilter } from '../src/services/playerService.js'
@@ -172,14 +173,35 @@ describe('GET /api/players', () => {
 })
 
 describe('GET /api/players/:slug', () => {
-  it('returns the player and an empty memories list', async (t) => {
-    const findOne = t.mock.method(Player, 'findOne', () => query(playerDoc()))
+  it("returns the player and their published memories, newest first", async (t) => {
+    const player = playerDoc()
+    const findOne = t.mock.method(Player, 'findOne', () => query(player))
+    const memoryQuery = query([
+      {
+        _id: new mongoose.Types.ObjectId(),
+        title: 'Test Memory',
+        slug: 'test-memory',
+        date: new Date('2025-12-12T00:00:00Z'),
+        description: 'A day to remember.',
+        coverImage: { url: 'https://res.cloudinary.com/demo/image/upload/c.jpg', publicId: 'c' },
+        photos: [{ url: 'u', publicId: 'p1' }],
+        published: true,
+      },
+    ])
+    const findMemories = t.mock.method(Memory, 'find', () => memoryQuery)
     const { status, body } = await json(await fetch(url('/api/players/Rahul-Das')))
 
     assert.equal(status, 200)
     assert.equal(body.data.player.slug, 'rahul-das')
-    assert.deepEqual(body.data.memories, [])
     assert.deepEqual(findOne.mock.calls[0].arguments[0], { slug: 'rahul-das' })
+    assert.deepEqual(findMemories.mock.calls[0].arguments[0], {
+      published: true,
+      players: String(player._id),
+    })
+    assert.deepEqual(memoryQuery.calls, { sort: { date: -1, _id: -1 }, limit: 12, select: '-players' })
+    assert.equal(body.data.memories.length, 1)
+    assert.equal(body.data.memories[0].slug, 'test-memory')
+    assert.equal(body.data.memories[0].photoCount, 1)
   })
 
   it('returns 404 for an unknown slug', async (t) => {
@@ -510,11 +532,15 @@ describe('DELETE /api/players/:id', () => {
     assert.equal((await del(new mongoose.Types.ObjectId())).status, 404)
   })
 
-  it('deletes the player, then its photo', async (t) => {
+  it('removes the player from memories, deletes the player, then its photo', async (t) => {
     signedIn(t)
     const player = playerDoc()
     const order = []
     t.mock.method(Player, 'findById', () => query(player))
+    const pull = t.mock.method(Memory, 'updateMany', async () => {
+      order.push('memories')
+      return { modifiedCount: 2 }
+    })
     const deleteOne = t.mock.method(Player, 'deleteOne', async () => {
       order.push('player')
       return { deletedCount: 1 }
@@ -528,13 +554,18 @@ describe('DELETE /api/players/:id', () => {
     assert.equal(status, 200)
     assert.deepEqual(body, { success: true, data: null, message: 'Player deleted successfully' })
     assert.deepEqual(deleteOne.mock.calls[0].arguments[0], { _id: player._id })
-    assert.deepEqual(order, ['player', 'photo:nist-fc/players/old'])
+    assert.deepEqual(pull.mock.calls[0].arguments, [
+      { players: player._id },
+      { $pull: { players: player._id } },
+    ])
+    assert.deepEqual(order, ['memories', 'player', 'photo:nist-fc/players/old'])
   })
 
   it('still succeeds when the photo cannot be deleted', async (t) => {
     signedIn(t)
     const logged = t.mock.method(console, 'error', () => {})
     t.mock.method(Player, 'findById', () => query(playerDoc()))
+    t.mock.method(Memory, 'updateMany', async () => ({ modifiedCount: 0 }))
     t.mock.method(Player, 'deleteOne', async () => ({ deletedCount: 1 }))
     t.mock.method(cloudinaryService, 'deleteImage', async () => {
       throw Object.assign(new Error('cloud down'), { http_code: 503 })

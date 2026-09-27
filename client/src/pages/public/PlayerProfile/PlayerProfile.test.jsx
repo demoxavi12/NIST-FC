@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import * as playerService from '../../../services/playerService'
@@ -36,7 +36,8 @@ describe('PlayerProfile', () => {
     expect(screen.getByText('Batch 2024-2028 • ECE')).toBeTruthy()
     expect(screen.getByText('Current')).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Test Player — NIST FC goalkeeper' })).toBeTruthy()
-    expect(document.title).toBe('Test Player | NIST FC')
+    // The title is set in an effect, which can run after the heading appears.
+    await waitFor(() => expect(document.title).toBe('Test Player | NIST FC'))
   })
 
   it('renders the bio as plain text', async () => {
@@ -54,6 +55,27 @@ describe('PlayerProfile', () => {
     await screen.findByRole('heading', { level: 1 })
 
     expect(screen.queryByText(/memories/i)).toBeNull()
+  })
+
+  it('shows the player memories and links to all of them when there are 12', async () => {
+    const memories = Array.from({ length: 12 }, (_, i) => ({
+      id: `m${i}`,
+      title: `Memory ${i + 1}`,
+      slug: `memory-${i + 1}`,
+      date: '2025-12-12T00:00:00.000Z',
+      location: '',
+      excerpt: '',
+      coverImage: { url: 'https://res.cloudinary.com/demo/image/upload/c.jpg', publicId: 'c' },
+      photoCount: 0,
+    }))
+    playerService.getPlayerBySlug.mockResolvedValue({ player: PLAYER, memories })
+    renderProfile()
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Memories' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Memory 1' }).getAttribute('href')).toBe('/memories/memory-1')
+    expect(
+      screen.getByRole('link', { name: 'View all memories with Test Player' }).getAttribute('href'),
+    ).toBe('/memories?player=1')
   })
 
   it('shows the not-found page for an unknown slug', async () => {

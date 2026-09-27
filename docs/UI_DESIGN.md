@@ -908,8 +908,12 @@ Large Gallery
 
 Players Involved
 
-Previous Memory ←          → Next Memory
+Tags (each links to /memories?tag=<tag>)
+
+← Older memory          Newer memory →
 ```
+
+The cover image is shown below the heading; it is separate from the gallery. Unpublished memories show the not-found page.
 
 ---
 
@@ -926,7 +930,15 @@ Use:
 
 Opening an image should allow the user to view it larger.
 
-A lightbox is allowed in V1.
+A lightbox is allowed in V1. It uses the native `<dialog>` element, so focus is trapped while it is open and returns to the selected thumbnail when it closes.
+
+Thumbnails are small, lazily loaded Cloudinary transformations; the large image (at most 1600×1600) loads only when shown in the lightbox, and the next one is preloaded.
+
+Gallery images use the alt text pattern:
+
+```text
+Photo N of M from <memory title>
+```
 
 ---
 
@@ -946,6 +958,8 @@ Keyboard support should be included where practical:
 Esc Close
 ```
 
+Previous/next wrap around at the ends. A counter (`N of M`) is announced to screen readers. On touch screens a horizontal swipe changes the photo. Animations respect `prefers-reduced-motion`.
+
 ---
 
 # 36. Memory Chronological Navigation
@@ -953,14 +967,14 @@ Esc Close
 At the bottom of a memory:
 
 ```text
-← Previous Memory
+← Older memory
 
-                Next Memory →
+                Newer memory →
 ```
 
 This allows visitors to move through NIST FC history without returning to the main gallery.
 
-The navigation must follow chronological order.
+The navigation must follow chronological order: "Older memory" is the next earlier published memory and "Newer memory" the next later one. Each link shows the memory's cover, title and date.
 
 ---
 

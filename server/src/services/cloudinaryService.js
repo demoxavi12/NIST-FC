@@ -57,5 +57,62 @@ async function deleteImageQuietly(publicId) {
   }
 }
 
+// Uploads run at most this many at a time, so a large gallery request does
+// not flood the server or Cloudinary.
+const UPLOAD_CONCURRENCY = 3
+
+/**
+ * Uploads several image buffers to `folder`, keeping their order.
+ * All-or-nothing: if any upload fails, every image already uploaded by this
+ * call is deleted and the error is rethrown.
+ */
+async function uploadImages(buffers, { folder }) {
+  const images = new Array(buffers.length)
+  let next = 0
+  let failure = null
+
+  async function worker() {
+    while (next < buffers.length && !failure) {
+      const index = next
+      next += 1
+      try {
+        images[index] = await cloudinaryService.uploadImage(buffers[index], { folder })
+      } catch (error) {
+        failure ??= error
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, buffers.length) }, worker),
+  )
+
+  if (failure) {
+    await Promise.all(
+      images.filter(Boolean).map((image) => cloudinaryService.deleteImageQuietly(image.publicId)),
+    )
+    throw failure
+  }
+  return images
+}
+
+/**
+ * Best-effort removal of an (emptied) folder. Folders are only an
+ * organisational aid, so failure is logged and ignored.
+ */
+async function deleteFolderQuietly(folder) {
+  try {
+    await cloudinary.api.delete_folder(folder)
+  } catch (error) {
+    console.error(`Failed to delete Cloudinary folder ${folder} (${describe(error?.error ?? error)})`)
+  }
+}
+
 // Exported as an object so tests can replace individual methods.
-export const cloudinaryService = { uploadImage, deleteImage, deleteImageQuietly }
+export const cloudinaryService = {
+  uploadImage,
+  uploadImages,
+  deleteImage,
+  deleteImageQuietly,
+  deleteFolderQuietly,
+}

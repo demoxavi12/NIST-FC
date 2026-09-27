@@ -350,8 +350,8 @@ function AdminPlayers() {
         onConfirm={handleConfirm}
         onCancel={() => setConfirm(null)}
       >
-        This will permanently remove {target?.name} and their photo. This cannot be undone. To keep
-        them in the archive, mark them as former instead.
+        This will permanently remove {target?.name} and their photo, and remove them from any
+        memories. This cannot be undone. To keep them in the archive, mark them as former instead.
       </ConfirmDialog>
     </div>
   )

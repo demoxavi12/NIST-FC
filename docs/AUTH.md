@@ -793,12 +793,18 @@ The exact operation should be handled transactionally where practical.
 When a memory is deleted:
 
 ```text id="0txb4g"
-Delete memory
+Delete memory document
       ↓
-Delete associated Cloudinary images
+Delete its cover and gallery images from Cloudinary
+      ↓
+Delete its Cloudinary folder (nist-fc/memories/<memoryId>)
       ↓
 Remove memory references from timeline events
 ```
+
+Image and folder deletions are best-effort: failures are logged (never with credentials) and do not fail the request. Timeline references are cleared once timeline events exist (Phase 6).
+
+Only authenticated administrators can delete memories, and deletion is permanent. Unpublishing hides a memory without deleting it.
 
 Deleting a memory must not delete players.
 
@@ -879,9 +885,12 @@ Maximum: 5 MB
 
 ```text id="1az8or"
 Maximum: 20 images per upload request
+Maximum: 100 gallery images per memory (fixed)
 ```
 
-The limits should be configurable.
+`MAX_MEMORY_IMAGES` (default 20, 1–50) limits the gallery photos accepted in one request; it is not the total per memory. `MAX_IMAGE_SIZE_MB` defaults to 5 and may be at most 10. Stored images are limited to 1600×1600.
+
+The per-request and size limits are configurable.
 
 Example:
 

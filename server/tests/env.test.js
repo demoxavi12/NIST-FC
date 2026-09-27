@@ -39,7 +39,11 @@ describe('loadConfig', () => {
     assert.equal(config.port, 5000)
     assert.equal(config.clientUrl, 'http://localhost:5173')
     assert.deepEqual(config.cloudinary, { cloudName: 'demo', apiKey: 'key', apiSecret: 'secret' })
-    assert.deepEqual(config.uploads, { maxImageSizeMb: 5, maxImageSizeBytes: 5 * 1024 * 1024 })
+    assert.deepEqual(config.uploads, {
+      maxImageSizeMb: 5,
+      maxImageSizeBytes: 5 * 1024 * 1024,
+      maxMemoryImages: 20,
+    })
     assert.equal(config.warnings.length, 0)
     assert.ok(Object.isFrozen(config))
   })
@@ -160,6 +164,14 @@ describe('loadConfig', () => {
       apiSecret: 'secret',
     })
     assert.equal(config.warnings.length, 0)
+  })
+
+  it('reads MAX_MEMORY_IMAGES (photos per upload request) with a default of 20, from 1 to 50', () => {
+    assert.equal(loadConfig({ ...BASE, MAX_MEMORY_IMAGES: '1' }).uploads.maxMemoryImages, 1)
+    assert.equal(loadConfig({ ...BASE, MAX_MEMORY_IMAGES: '50' }).uploads.maxMemoryImages, 50)
+    for (const value of ['0', '51', '2.5', 'abc']) {
+      assert.match(problemsFor({ ...BASE, MAX_MEMORY_IMAGES: value }).message, /MAX_MEMORY_IMAGES must be/, value)
+    }
   })
 
   it('reads MAX_IMAGE_SIZE_MB with a default of 5 and a maximum of 10', () => {

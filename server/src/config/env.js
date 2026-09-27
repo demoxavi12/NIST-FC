@@ -5,9 +5,8 @@ import { adminSeedSchema } from '../validators/authValidators.js'
  *
  * The server requires the variables its current features use. Cloudinary is
  * required in every environment because player photos are required.
- * MAX_IMAGE_SIZE_MB is optional; MAX_MEMORY_IMAGES is read when memory
- * galleries are implemented. ADMIN_* are read only by the admin seed script
- * (loadAdminSeedConfig).
+ * MAX_IMAGE_SIZE_MB and MAX_MEMORY_IMAGES are optional. ADMIN_* are read only
+ * by the admin seed script (loadAdminSeedConfig).
  *
  * Error and warning messages name variables but never include their values.
  */
@@ -33,6 +32,10 @@ const DURATION_UNIT_MS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 // Per-image upload limit. Cloudinary's free plan accepts images up to 10 MB.
 const DEFAULT_MAX_IMAGE_SIZE_MB = 5
 const MAX_IMAGE_SIZE_MB_LIMIT = 10
+// Gallery photos accepted in one upload request (docs/AUTH.md §35) — not the
+// total a memory can hold.
+const DEFAULT_MAX_MEMORY_IMAGES = 20
+const MAX_MEMORY_IMAGES_LIMIT = 50
 
 // RFC 6265 cookie-name token characters.
 const COOKIE_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
@@ -186,6 +189,19 @@ export function loadConfig(env = process.env) {
     )
   }
 
+  const maxMemoryImagesValue = read(env, 'MAX_MEMORY_IMAGES')
+  const maxMemoryImages =
+    maxMemoryImagesValue === undefined ? DEFAULT_MAX_MEMORY_IMAGES : Number(maxMemoryImagesValue)
+  if (
+    !Number.isInteger(maxMemoryImages) ||
+    maxMemoryImages < 1 ||
+    maxMemoryImages > MAX_MEMORY_IMAGES_LIMIT
+  ) {
+    problems.push(
+      `MAX_MEMORY_IMAGES must be a whole number from 1 to ${MAX_MEMORY_IMAGES_LIMIT}`,
+    )
+  }
+
   if (problems.length > 0) throw new ConfigError(problems)
 
   const cloudinary = Object.freeze({
@@ -206,6 +222,7 @@ export function loadConfig(env = process.env) {
     uploads: Object.freeze({
       maxImageSizeMb,
       maxImageSizeBytes: Math.floor(maxImageSizeMb * 1024 * 1024),
+      maxMemoryImages,
     }),
     warnings: Object.freeze(warnings),
   })
