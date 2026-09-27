@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { createAuthRoutes } from './authRoutes.js'
 import healthRoutes from './healthRoutes.js'
+import { createAdminMemoryRoutes, createMemoryRoutes } from './memoryRoutes.js'
 import { createAdminPlayerRoutes, createPlayerRoutes } from './playerRoutes.js'
 
 /**
@@ -14,6 +15,8 @@ export function createApiRouter(config) {
   router.use('/auth', createAuthRoutes(config))
   router.use('/players', createPlayerRoutes(config))
   router.use('/admin/players', createAdminPlayerRoutes(config))
+  router.use('/memories', createMemoryRoutes(config))
+  router.use('/admin/memories', createAdminMemoryRoutes(config))
 
   return router
 }

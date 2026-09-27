@@ -5,7 +5,8 @@ import FieldError from './FieldError'
 /**
  * Image picker with a preview (docs/UI_DESIGN.md §53). Shows the chosen file,
  * or `currentUrl` when editing. The preview's object URL is released when the
- * file changes or the field unmounts.
+ * file changes or the field unmounts. `aspect` is 'portrait' (player photos)
+ * or 'landscape' (memory covers).
  */
 function PhotoField({
   id,
@@ -17,6 +18,7 @@ function PhotoField({
   hint,
   accept,
   required = false,
+  aspect = 'portrait',
   ref,
 }) {
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
@@ -42,7 +44,11 @@ function PhotoField({
       )}
 
       <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="aspect-[4/5] w-32 shrink-0 overflow-hidden rounded-sm border border-border bg-surface-muted">
+        <div
+          className={`shrink-0 overflow-hidden rounded-sm border border-border bg-surface-muted ${
+            aspect === 'landscape' ? 'aspect-[3/2] w-48' : 'aspect-[4/5] w-32'
+          }`}
+        >
           {shown ? (
             <img
               src={shown}

@@ -4,6 +4,8 @@ import Container from '../../../components/common/Container'
 import ErrorState from '../../../components/common/ErrorState'
 import LoadingState from '../../../components/common/LoadingState'
 import StatusBadge from '../../../components/common/StatusBadge'
+import MemoryCard from '../../../components/memory/MemoryCard'
+import { PLAYER_PROFILE_MEMORY_LIMIT } from '../../../constants/memories'
 import useApiRequest from '../../../hooks/useApiRequest'
 import usePageMeta from '../../../hooks/usePageMeta'
 import { getPlayerBySlug } from '../../../services/playerService'
@@ -23,8 +25,7 @@ function describePlayer(player) {
 
 /**
  * /players/:slug — an individual player (docs/SITE_MAP.md §6, UI_DESIGN
- * §23–§24). Memories involving the player are shown once memories exist
- * (Phase 5); the API already returns the (currently empty) list.
+ * §23–§24), with up to 12 published memories they appear in, newest first.
  */
 function PlayerProfile() {
   const { slug } = useParams()
@@ -95,6 +96,31 @@ function PlayerProfile() {
             )}
           </div>
         </article>
+      )}
+
+      {data?.memories.length > 0 && (
+        <section className="mt-16 border-t border-border pt-12" aria-labelledby="player-memories">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 id="player-memories" className="text-2xl font-bold tracking-tight text-ink md:text-3xl">
+              Memories
+            </h2>
+            {data.memories.length >= PLAYER_PROFILE_MEMORY_LIMIT && (
+              <Link
+                to={`/memories?player=${player.id}`}
+                className="inline-flex min-h-11 items-center text-sm font-semibold text-accent hover:text-accent-strong"
+              >
+                View all memories with {player.name}
+              </Link>
+            )}
+          </div>
+          <ul className="mt-6 grid gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
+            {data.memories.map((memory) => (
+              <li key={memory.id}>
+                <MemoryCard memory={memory} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </Container>
   )

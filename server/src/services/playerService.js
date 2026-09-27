@@ -1,7 +1,9 @@
 import mongoose from 'mongoose'
+import Memory from '../models/Memory.js'
 import Player from '../models/Player.js'
 import ApiError from '../utils/ApiError.js'
-import { escapeRegExp, slugify } from '../utils/slugify.js'
+import { escapeRegExp } from '../utils/slugify.js'
+import { isDuplicateSlugError, uniqueSlug } from '../utils/uniqueSlug.js'
 import { cloudinaryService } from './cloudinaryService.js'
 
 export const PLAYER_PHOTO_FOLDER = 'nist-fc/players'
@@ -92,27 +94,10 @@ export async function getPlayerById(id) {
   return toPlayerResponse(player)
 }
 
-/**
- * A slug not used by any other player: "rahul-das", then "rahul-das-2", …
- * The unique index remains the final guarantee (see createPlayer).
- */
-export async function generateUniqueSlug(name) {
-  const base = slugify(name, 'player')
-  const existing = await Player.find({
-    slug: mongoose.trusted({ $regex: `^${escapeRegExp(base)}(-\\d+)?$` }),
-  })
-    .select('slug')
-    .lean()
-
-  const taken = new Set(existing.map((player) => player.slug))
-  if (!taken.has(base)) return base
-
-  let suffix = 2
-  while (taken.has(`${base}-${suffix}`)) suffix += 1
-  return `${base}-${suffix}`
+/** A slug not used by any other player (see utils/uniqueSlug.js). */
+export function generateUniqueSlug(name) {
+  return uniqueSlug(Player, name, 'player')
 }
-
-const isDuplicateSlug = (error) => error?.code === 11000 && error.keyPattern?.slug
 
 /**
  * Creates a player: upload the photo, then save. If saving fails the uploaded
@@ -130,7 +115,7 @@ export async function createPlayer(fields, file) {
         const player = await Player.create({ ...fields, slug, photo })
         return toPlayerResponse(player)
       } catch (error) {
-        if (!isDuplicateSlug(error) || attempt === 2) throw error
+        if (!isDuplicateSlugError(error) || attempt === 2) throw error
       }
     }
   } catch (error) {
@@ -168,12 +153,10 @@ export async function updatePlayer(id, fields, file) {
   return toPlayerResponse(player)
 }
 
-/**
- * Removes the player from memories that reference them (docs/AUTH.md §30).
- * Memories are implemented in Phase 5; until then no memory can reference a
- * player. Phase 5 will pull the id from Memory.players here.
- */
-async function removePlayerFromMemories() {}
+/** Removes the player from every memory that references them (docs/AUTH.md §30). */
+async function removePlayerFromMemories(playerId) {
+  await Memory.updateMany({ players: playerId }, { $pull: { players: playerId } })
+}
 
 /**
  * Permanently deletes a player — an exceptional admin action; players who

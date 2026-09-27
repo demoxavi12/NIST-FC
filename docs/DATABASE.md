@@ -355,16 +355,16 @@ Memory
 | Field         | Type       | Required | Description                    |
 | ------------- | ---------- | -------: | ------------------------------ |
 | `_id`         | ObjectId   |      Yes | MongoDB document ID            |
-| `title`       | String     |      Yes | Memory/event title             |
-| `slug`        | String     |      Yes | Unique URL-friendly identifier |
-| `description` | String     |       No | Description of the memory      |
-| `date`        | Date       |      Yes | Date of the event              |
-| `location`    | String     |       No | Event location                 |
-| `coverImage`  | Object     |      Yes | Main/thumbnail image           |
-| `photos`      | Array      |      Yes | Gallery images                 |
-| `players`     | [ObjectId] |       No | Referenced players             |
-| `tags`        | [String]   |       No | Optional descriptive tags      |
-| `published`   | Boolean    |      Yes | Public visibility state        |
+| `title`       | String     |      Yes | Memory/event title, max 150 characters                         |
+| `slug`        | String     |      Yes | Unique URL-friendly identifier, generated once and never changed |
+| `description` | String     |       No | Plain-text description, max 5000 characters                    |
+| `date`        | Date       |      Yes | Calendar day of the event, stored as 00:00 UTC                 |
+| `location`    | String     |       No | Event location, max 150 characters                             |
+| `coverImage`  | Object     |      Yes | Main/thumbnail image, separate from the gallery                |
+| `photos`      | Array      |      Yes | Gallery images, 0–100, in upload order (defaults to `[]`)      |
+| `players`     | [ObjectId] |       No | Referenced players (current or former)                         |
+| `tags`        | [String]   |       No | Max 20; each trimmed, lower-cased, unique, max 30 characters   |
+| `published`   | Boolean    |      Yes | Public visibility state; defaults to `false` (draft)           |
 | `createdAt`   | Date       |      Yes | Creation timestamp             |
 | `updatedAt`   | Date       |      Yes | Last modification timestamp    |
 
@@ -381,16 +381,16 @@ Each memory image uses:
 }
 ```
 
-The `coverImage` is the primary image shown on memory cards.
+The `coverImage` is the primary image shown on memory cards. It is required and stored separately: it does not need to appear in the gallery.
 
-The `photos` array contains the complete gallery.
+The `photos` array contains the complete gallery. It may be empty and holds at most 100 photos.
 
 Example:
 
 ```js
 coverImage: {
   url: "https://res.cloudinary.com/...",
-  publicId: "nist-fc/memories/tournament-2025/cover"
+  publicId: "nist-fc/memories/<memoryId>/<randomId>"
 }
 ```
 
@@ -408,16 +408,18 @@ Example:
 photos: [
   {
     url: "https://res.cloudinary.com/...",
-    publicId: "nist-fc/memories/tournament-2025/photo-1",
+    publicId: "nist-fc/memories/<memoryId>/<randomId>",
   },
   {
     url: "https://res.cloudinary.com/...",
-    publicId: "nist-fc/memories/tournament-2025/photo-2",
+    publicId: "nist-fc/memories/<memoryId>/<randomId>",
   },
 ];
 ```
 
 This keeps the V1 architecture simple.
+
+Photos stay in upload order: new photos are appended, and V1 has no gallery reordering.
 
 ---
 
@@ -480,10 +482,18 @@ date
 Typical query:
 
 ```text
-sort by date descending
+sort by date descending, then _id descending
 ```
 
-V1 does not require a separate manual memory ordering field.
+`_id` breaks ties between memories on the same day, so lists and previous/next navigation always agree.
+
+V1 has no manual memory ordering field; admins cannot reorder memories.
+
+---
+
+# 5.8 Memory Concurrency
+
+The Memory schema uses Mongoose optimistic concurrency (`optimisticConcurrency: true`): saving a memory that another request changed in the meantime fails instead of overwriting it. The API also compares the client's `expectedUpdatedAt` with the stored `updatedAt`. Both return `409` (see API.md §13).
 
 ---
 
@@ -871,8 +881,10 @@ nist-fc/players/rahul-das
 ```
 
 ```text
-nist-fc/memories/university-tournament-2025
+nist-fc/memories/<memoryId>/<randomId>
 ```
+
+Each memory has its own folder, named after its `_id`, holding its cover and gallery. Image public IDs are random.
 
 ```text
 nist-fc/timeline/founding
@@ -997,6 +1009,7 @@ slug       → unique
 date       → indexed
 players    → indexed
 published  → indexed
+{ published: 1, date: -1, _id: -1 } → compound (public list and previous/next)
 ```
 
 ---
@@ -1138,9 +1151,11 @@ Permanent player deletion should be treated as an exceptional administrative act
 
 ## Memories
 
-A memory can be permanently deleted by an authorized administrator when necessary.
+A memory can be permanently deleted by an authorized administrator when necessary. To hide a memory instead, unpublish it.
 
-Before permanent deletion, associated Cloudinary images must also be considered for cleanup.
+Deletion order: the memory document, then its cover and gallery images in Cloudinary, then its folder `nist-fc/memories/<memoryId>`. Failed image deletions are logged and do not fail the request.
+
+Deleting a player removes their ID from every memory's `players` array.
 
 ---
 
@@ -1193,7 +1208,8 @@ Important rules include:
 - `slug` unique
 - `date` required
 - `coverImage` required
-- `photos` must contain valid image references
+- `photos` must contain valid image references; at most 100
+- `tags` at most 20, each at most 30 characters
 - referenced player IDs must be valid MongoDB ObjectIds
 
 ### Timeline Events

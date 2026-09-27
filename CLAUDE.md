@@ -395,7 +395,7 @@ Ordering is strictly by `date` descending. V1 has no manual memory-ordering fiel
 
 There is no separate Photo collection in V1.
 
-A memory contains its complete gallery.
+A memory contains its complete gallery: 0–100 photos in upload order (no reordering in V1). The required cover image is stored separately and need not appear in the gallery. `MAX_MEMORY_IMAGES` limits photos per upload request, not per memory. New memories are unpublished drafts. See `docs/DATABASE.md` §5.
 
 ---
 

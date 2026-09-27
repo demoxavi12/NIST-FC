@@ -1,3 +1,4 @@
+import { listPlayerMemories } from '../services/memoryService.js'
 import * as playerService from '../services/playerService.js'
 import ApiError from '../utils/ApiError.js'
 import { sendSuccess } from '../utils/apiResponse.js'
@@ -16,13 +17,14 @@ export async function listPlayers(req, res) {
 }
 
 /**
- * GET /api/players/:slug — public. `memories` is always empty until memories
- * exist (Phase 5); the response shape is already final (docs/API.md §10).
+ * GET /api/players/:slug — public. `memories` lists the player's published
+ * memories, newest first (at most 12) (docs/API.md §10).
  */
 export async function getPlayerBySlug(req, res) {
   const player = await playerService.getPlayerBySlug(req.params.slug)
+  const memories = await listPlayerMemories(player.id)
   sendSuccess(res, {
-    data: { player, memories: [] },
+    data: { player, memories },
     message: 'Player retrieved successfully',
   })
 }
