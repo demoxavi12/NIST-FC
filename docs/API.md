@@ -192,6 +192,7 @@ The API should use standard HTTP status codes.
 |  `422` | Unprocessable entity when appropriate     |
 |  `429` | Too many requests (rate limit, Phase 3)   |
 |  `500` | Internal server error                     |
+|  `502` | Image upload failed (Cloudinary)          |
 
 DELETE endpoints return `200` with the standard response body (see §4), not `204`:
 
@@ -334,24 +335,28 @@ Authentication required.
 
 Public player endpoints do not require authentication.
 
+Players have no `published` flag, so every player is public: current and former players are both part of the archive.
+
 ---
 
 ## GET `/api/players`
 
-Returns players.
+Returns a page of players.
 
 ### Query Parameters
 
-```text
-search
-status
-position
-batch
-branch
-page
-limit
-sort
-```
+| Parameter  | Values                                                        | Default |
+| ---------- | ------------------------------------------------------------- | ------- |
+| `search`   | Text, max 100 characters. Case-insensitive partial name match | —       |
+| `status`   | `current` or `former`                                         | all     |
+| `position` | `Goalkeeper`, `Defender`, `Midfielder` or `Forward`           | all     |
+| `batch`    | Exact batch range, `YYYY-YYYY` (e.g. `2023-2027`)             | all     |
+| `branch`   | Exact branch, max 50 characters                               | all     |
+| `page`     | Whole number, at least 1                                      | `1`     |
+| `limit`    | Whole number from 1 to 48                                     | `12`    |
+| `sort`     | `name`, `-name`, `batch` or `-batch`                          | `name`  |
+
+Invalid values return `400 Validation failed` with field messages in `error`. Unknown parameters are ignored.
 
 Example:
 
@@ -362,20 +367,40 @@ Example:
 Example:
 
 ```text
-/api/players?search=Rahul&batch=2025
+/api/players?search=Rahul&batch=2023-2027
 ```
 
 ### Response
 
+`filters` lists the batch and branch values that exist (batches newest first, branches alphabetically), for filter dropdowns.
+
 ```json
 {
   "success": true,
-  "data": [],
+  "data": [
+    {
+      "id": "...",
+      "name": "Rahul Das",
+      "slug": "rahul-das",
+      "photo": { "url": "https://res.cloudinary.com/...", "publicId": "nist-fc/players/..." },
+      "position": "Midfielder",
+      "batch": "2023-2027",
+      "branch": "CSE",
+      "bio": "",
+      "status": "current",
+      "createdAt": "...",
+      "updatedAt": "..."
+    }
+  ],
   "pagination": {
     "page": 1,
     "limit": 12,
     "total": 25,
     "pages": 3
+  },
+  "filters": {
+    "batches": ["2024-2028", "2023-2027"],
+    "branches": ["CSE", "ECE"]
   },
   "message": "Players retrieved successfully"
 }
@@ -406,7 +431,9 @@ Example:
 }
 ```
 
-The endpoint may return memories associated with the player.
+`memories` lists memories associated with the player. It is always empty until memories are implemented (Phase 5).
+
+Unknown slugs return `404 Player not found`.
 
 ---
 
@@ -416,27 +443,51 @@ All endpoints in this section require authentication.
 
 ---
 
+## GET `/api/admin/players/:id`
+
+Returns one player by ID, for the admin edit form.
+
+Authentication required.
+
+```json
+{
+  "success": true,
+  "data": {
+    "player": {}
+  },
+  "message": "Player retrieved successfully"
+}
+```
+
+The admin player list uses the public `GET /api/players`.
+
+---
+
 ## POST `/api/players`
 
 Creates a player.
 
 ### Request
 
-The request should use `multipart/form-data` because the player photo may be uploaded.
+`multipart/form-data`:
 
-Example fields:
+| Field      | Required | Rules                                                                 |
+| ---------- | -------- | --------------------------------------------------------------------- |
+| `name`     | Yes      | 1–100 characters                                                      |
+| `position` | Yes      | `Goalkeeper`, `Defender`, `Midfielder` or `Forward`                   |
+| `batch`    | Yes      | `YYYY-YYYY`, second year after the first (e.g. `2023-2027`)           |
+| `branch`   | Yes      | 1–50 characters                                                       |
+| `bio`      | No       | Plain text, max 1000 characters                                       |
+| `status`   | No       | `current` (default) or `former`                                       |
+| `photo`    | Yes      | One JPEG, PNG or WEBP file, at most `MAX_IMAGE_SIZE_MB` (default 5 MB) |
 
-```text
-name
-position
-batch
-branch
-bio
-status
-photo
-```
+The server generates the `slug` from the name (`rahul-das`, then `rahul-das-2`, …). It stays the same if the name is later changed, so shared profile links keep working.
+
+The photo is uploaded to Cloudinary (folder `nist-fc/players`, random public ID, stored at most 1600×1600). MongoDB stores only `{ url, publicId }`. If saving the player fails, the uploaded photo is deleted.
 
 ### Success
+
+HTTP `201`:
 
 ```json
 {
@@ -447,6 +498,15 @@ photo
   "message": "Player created successfully"
 }
 ```
+
+### Errors
+
+| Status | Cause                                                                 |
+| -----: | --------------------------------------------------------------------- |
+|  `400` | Invalid fields, missing photo (`error.photo`), or unsupported file type |
+|  `401` | Not authenticated                                                     |
+|  `413` | Photo larger than `MAX_IMAGE_SIZE_MB`                                 |
+|  `502` | Cloudinary rejected or failed the upload (`Image upload failed`)      |
 
 ---
 
@@ -468,7 +528,13 @@ status
 photo
 ```
 
-Only supplied fields should be changed.
+Only supplied fields are changed. At least one field or a new photo is required.
+
+Send `multipart/form-data` when replacing the photo, or JSON otherwise (for example `{ "status": "former" }` to archive a player).
+
+A new photo replaces the old one: the old image is deleted from Cloudinary only after the player is saved.
+
+Errors are the same as for `POST`, plus `404 Player not found`.
 
 ---
 
@@ -488,7 +554,7 @@ status = "former"
 
 rather than deletion.
 
-The backend must handle existing memory references safely before permanent deletion.
+The backend removes the player from any memories that reference them (from Phase 5), deletes the player, then deletes the photo from Cloudinary. A failed image deletion is logged and does not fail the request.
 
 ### Success
 
@@ -498,7 +564,7 @@ HTTP `200`:
 {
   "success": true,
   "data": null,
-  "message": "Resource deleted successfully"
+  "message": "Player deleted successfully"
 }
 ```
 
@@ -1233,6 +1299,7 @@ GET    /api/auth/me
 ```text
 GET    /api/players
 GET    /api/players/:slug
+GET    /api/admin/players/:id
 
 POST   /api/players
 PATCH  /api/players/:id
@@ -1585,6 +1652,8 @@ ADMIN_PASSWORD=
 ```
 
 `NODE_ENV` must be either `development` or `production`.
+
+The Cloudinary variables are required at startup in every environment, because player photos are required. `MAX_IMAGE_SIZE_MB` is optional: default 5, at most 10 (Cloudinary's free-plan image limit).
 
 All of these belong to the backend (`server/.env`).
 

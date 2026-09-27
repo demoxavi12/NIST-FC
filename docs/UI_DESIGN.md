@@ -109,7 +109,14 @@ Border
 
 Accent (TEMPORARY)
 #1D4ED8
+
+Danger
+#B42318
 ```
+
+### Danger
+
+`#B42318` marks destructive actions (for example, permanently deleting a player) and error messages. It must always be paired with text or an icon, never used as the only signal. It is defined once as a design token, like the accent.
 
 ### Temporary accent
 
@@ -632,16 +639,19 @@ Branch is part of the player information (see `FEATURES.md` §4.4). It may be sh
 Example:
 
 ```text
-┌──────────────────┐
-│                  │
-│      PHOTO       │
-│                  │
-├──────────────────┤
-│ Rahul Das        │
-│ Midfielder       │
-│ Batch 2025 • CSE │
-└──────────────────┘
+┌─────────────────────────┐
+│                         │
+│          PHOTO          │
+│                         │
+├─────────────────────────┤
+│ CURRENT                 │
+│ Rahul Das               │
+│ Midfielder              │
+│ Batch 2023-2027 • CSE   │
+└─────────────────────────┘
 ```
+
+Batch is always shown as the full academic range, `YYYY-YYYY` (docs/DATABASE.md §4.4).
 
 The card should link to:
 
@@ -679,7 +689,7 @@ Structure:
 │                                            │
 │  Rahul Das                                 │
 │  Midfielder                                │
-│  Batch 2025 • CSE                          │
+│  Batch 2023-2027 • CSE                     │
 │                                            │
 │  Biography                                 │
 │                                            │

@@ -1,12 +1,14 @@
-import { AlertCircle } from 'lucide-react'
+import FieldError from './FieldError'
 
 /**
- * Labelled text input with an associated error message (docs/UI_DESIGN.md
- * §56). Remaining props (type, value, onChange, autoComplete, ref…) go to the
- * <input>. Errors are marked with an icon and text, not colour alone.
+ * Labelled text input with an optional hint and an associated error message
+ * (docs/UI_DESIGN.md §56). Remaining props (type, value, onChange,
+ * autoComplete, ref…) go to the <input>.
  */
-function TextField({ id, label, error, required = false, className = '', ...inputProps }) {
+function TextField({ id, label, error, hint, required = false, className = '', ...inputProps }) {
+  const hintId = `${id}-hint`
   const errorId = `${id}-error`
+  const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined
 
   return (
     <div className={className}>
@@ -14,23 +16,23 @@ function TextField({ id, label, error, required = false, className = '', ...inpu
         {label}
         {required && <span className="ml-1 font-normal text-ink-muted">(required)</span>}
       </label>
+      {hint && (
+        <p id={hintId} className="mt-1 text-sm text-ink-muted">
+          {hint}
+        </p>
+      )}
       <input
         id={id}
         name={id}
         aria-required={required || undefined}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy}
         className={`mt-2 block min-h-11 w-full rounded-sm border bg-surface px-3 text-base text-ink ${
-          error ? 'border-ink' : 'border-border'
+          error ? 'border-danger' : 'border-border'
         }`}
         {...inputProps}
       />
-      {error && (
-        <p id={errorId} className="mt-2 flex items-center gap-1.5 text-sm font-medium text-ink">
-          <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
-          {error}
-        </p>
-      )}
+      <FieldError id={errorId}>{error}</FieldError>
     </div>
   )
 }

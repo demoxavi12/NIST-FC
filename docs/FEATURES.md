@@ -124,7 +124,7 @@ Example:
 Name: Arjun Kumar
 Photo: Player photograph
 Position: Right Winger
-Batch: 2023
+Batch: 2023-2027
 Branch: CSE
 Bio: Short player biography
 Status: Current
@@ -238,14 +238,15 @@ The exact position values can be expanded if required.
 
 ### Batch
 
+Batch is the academic batch range (`YYYY-YYYY`). The filter lists the batches that exist, newest first, and matches them exactly.
+
 Example:
 
 ```text
 All
-2022
-2023
-2024
-2025
+2025-2029
+2024-2028
+2023-2027
 ...
 ```
 

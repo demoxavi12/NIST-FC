@@ -1,10 +1,9 @@
 import { v2 as cloudinary } from 'cloudinary'
 
 /**
- * Configures the Cloudinary SDK from validated config (config/env.js).
- * Configuration only: upload and deletion services arrive with the upload
- * feature. Returns the configured SDK, or null when Cloudinary is not set
- * (allowed in development only).
+ * Configures the Cloudinary SDK from validated config (config/env.js), which
+ * requires the Cloudinary variables. Uploads and deletions go through
+ * services/cloudinaryService.js.
  */
 export function configureCloudinary(settings) {
   if (!settings) return null

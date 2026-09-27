@@ -93,7 +93,7 @@ Example:
     Name: Arjun Kumar
     Photo: Player photograph
     Position: Right Winger
-    Batch: 2023
+    Batch: 2023-2027
     Branch: CSE
     Bio: Short player biography
 
@@ -120,21 +120,21 @@ These may be considered for future versions only if there is a clear requirement
 
 ## 6. Player Batch
 
-The player's batch will be represented using a simple year.
+The player's batch is their full academic batch range, in the format `YYYY-YYYY`.
 
 Example:
 
-    Batch: 2023
+    Batch: 2023-2027
 
 The batch is separate from the player's current/former status.
 
 Example:
 
     Current Player
-    Batch: 2024
+    Batch: 2024-2028
 
     Former Player
-    Batch: 2021
+    Batch: 2021-2025
 
 ---
 

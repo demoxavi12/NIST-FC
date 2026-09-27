@@ -5,20 +5,20 @@ import {
   loadAdminSeedConfig,
   loadConfig,
 } from '../src/config/env.js'
-import { AUTH_ENV } from './helpers.js'
+import { AUTH_ENV, CLOUDINARY_ENV } from './helpers.js'
+
+const CLOUDINARY = CLOUDINARY_ENV
 
 const BASE = {
   NODE_ENV: 'development',
   MONGODB_URI: 'mongodb+srv://user:s3cret-pass@cluster.example.net/nist-fc?retryWrites=true',
   CLIENT_URL: 'http://localhost:5173/',
   ...AUTH_ENV,
+  ...CLOUDINARY,
 }
 
-const CLOUDINARY = {
-  CLOUDINARY_CLOUD_NAME: 'demo',
-  CLOUDINARY_API_KEY: 'key',
-  CLOUDINARY_API_SECRET: 'secret',
-}
+const withoutCloudinary = (env) =>
+  Object.fromEntries(Object.entries(env).filter(([name]) => !name.startsWith('CLOUDINARY_')))
 
 function problemsFor(env, load = loadConfig) {
   try {
@@ -31,23 +31,24 @@ function problemsFor(env, load = loadConfig) {
 }
 
 describe('loadConfig', () => {
-  it('accepts the Phase 2 minimum and applies defaults', () => {
+  it('accepts the required minimum and applies defaults', () => {
     const config = loadConfig(BASE)
 
     assert.equal(config.nodeEnv, 'development')
     assert.equal(config.isProduction, false)
     assert.equal(config.port, 5000)
     assert.equal(config.clientUrl, 'http://localhost:5173')
-    assert.equal(config.cloudinary, null)
-    assert.equal(config.warnings.length, 1)
-    assert.match(config.warnings[0], /Cloudinary is not configured/)
+    assert.deepEqual(config.cloudinary, { cloudName: 'demo', apiKey: 'key', apiSecret: 'secret' })
+    assert.deepEqual(config.uploads, { maxImageSizeMb: 5, maxImageSizeBytes: 5 * 1024 * 1024 })
+    assert.equal(config.warnings.length, 0)
     assert.ok(Object.isFrozen(config))
   })
 
   it('reports every missing required variable at once', () => {
     const error = problemsFor({})
 
-    assert.equal(error.problems.length, 8)
+    assert.equal(error.problems.length, 9)
+    assert.match(error.message, /Cloudinary is not configured \(missing CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET\)/)
     for (const name of [
       'NODE_ENV',
       'MONGODB_URI',
@@ -140,9 +141,11 @@ describe('loadConfig', () => {
     )
   })
 
-  it('requires Cloudinary in production', () => {
-    const error = problemsFor({ ...BASE, NODE_ENV: 'production', COOKIE_SECURE: 'true' })
-    assert.match(error.message, /required in production/)
+  it('requires Cloudinary in every environment', () => {
+    for (const NODE_ENV of ['development', 'production']) {
+      const error = problemsFor({ ...withoutCloudinary(BASE), NODE_ENV, COOKIE_SECURE: 'true' })
+      assert.match(error.message, /Cloudinary is not configured/)
+    }
 
     const config = loadConfig({
       ...BASE,
@@ -157,6 +160,14 @@ describe('loadConfig', () => {
       apiSecret: 'secret',
     })
     assert.equal(config.warnings.length, 0)
+  })
+
+  it('reads MAX_IMAGE_SIZE_MB with a default of 5 and a maximum of 10', () => {
+    assert.equal(loadConfig({ ...BASE, MAX_IMAGE_SIZE_MB: '2.5' }).uploads.maxImageSizeBytes, 2.5 * 1024 * 1024)
+    assert.equal(loadConfig({ ...BASE, MAX_IMAGE_SIZE_MB: '10' }).uploads.maxImageSizeMb, 10)
+    for (const value of ['0', '-1', '11', 'abc']) {
+      assert.match(problemsFor({ ...BASE, MAX_IMAGE_SIZE_MB: value }).message, /MAX_IMAGE_SIZE_MB must be/, value)
+    }
   })
 })
 

@@ -364,6 +364,8 @@ Do not delete former players simply because they leave the team.
 
 The historical archive is an important product requirement.
 
+`batch` is the academic batch range, stored as a string in the format `YYYY-YYYY` with the second year after the first (e.g. `2023-2027`). Use the same format everywhere: validation, API, forms, filters and display. See `docs/DATABASE.md` §4.4.
+
 ---
 
 # 12. Memory Rules

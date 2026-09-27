@@ -12,6 +12,13 @@ export const AUTH_ENV = Object.freeze({
   COOKIE_SAME_SITE: 'lax',
 })
 
+/** Placeholder Cloudinary settings; tests never call Cloudinary. */
+export const CLOUDINARY_ENV = Object.freeze({
+  CLOUDINARY_CLOUD_NAME: 'demo',
+  CLOUDINARY_API_KEY: 'key',
+  CLOUDINARY_API_SECRET: 'secret',
+})
+
 /** A valid development config; no MongoDB connection is made by the app. */
 export function testConfig(overrides = {}) {
   return loadConfig({
@@ -19,6 +26,7 @@ export function testConfig(overrides = {}) {
     MONGODB_URI: 'mongodb://127.0.0.1:27017/nist-fc-test',
     CLIENT_URL,
     ...AUTH_ENV,
+    ...CLOUDINARY_ENV,
     ...overrides,
   })
 }
