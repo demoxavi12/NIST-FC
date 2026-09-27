@@ -6,6 +6,8 @@ const BASE =
 const VARIANTS = {
   primary: 'bg-accent text-on-dark hover:bg-accent-strong',
   secondary: 'border border-border bg-surface text-ink hover:bg-surface-muted',
+  // Destructive actions such as permanent deletion (CLAUDE.md §44).
+  danger: 'bg-danger text-on-dark hover:bg-danger-strong',
 }
 
 /**

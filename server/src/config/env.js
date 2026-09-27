@@ -3,9 +3,11 @@ import { adminSeedSchema } from '../validators/authValidators.js'
 /**
  * Environment configuration (docs/API.md §38, docs/AUTH.md §46).
  *
- * The server requires the variables its current features use. Upload limits
- * are read when uploads are implemented. ADMIN_* are read only by the admin
- * seed script (loadAdminSeedConfig).
+ * The server requires the variables its current features use. Cloudinary is
+ * required in every environment because player photos are required.
+ * MAX_IMAGE_SIZE_MB is optional; MAX_MEMORY_IMAGES is read when memory
+ * galleries are implemented. ADMIN_* are read only by the admin seed script
+ * (loadAdminSeedConfig).
  *
  * Error and warning messages name variables but never include their values.
  */
@@ -27,6 +29,10 @@ const PLACEHOLDER_JWT_SECRET = 'change-this-in-production'
 // <number><s|m|h|d>, e.g. 1d or 12h (docs/AUTH.md §8).
 const JWT_EXPIRES_IN_PATTERN = /^([1-9]\d*)([smhd])$/
 const DURATION_UNIT_MS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }
+
+// Per-image upload limit. Cloudinary's free plan accepts images up to 10 MB.
+const DEFAULT_MAX_IMAGE_SIZE_MB = 5
+const MAX_IMAGE_SIZE_MB_LIMIT = 10
 
 // RFC 6265 cookie-name token characters.
 const COOKIE_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
@@ -162,24 +168,31 @@ export function loadConfig(env = process.env) {
 
   const missingCloudinary = CLOUDINARY_VARS.filter((name) => !read(env, name))
   if (missingCloudinary.length > 0) {
-    const message = `Cloudinary is not configured (missing ${missingCloudinary.join(', ')})`
-    if (isProduction) {
-      problems.push(`${message}; it is required in production`)
-    } else {
-      warnings.push(`${message}; image features will not work until it is set`)
-    }
+    problems.push(
+      `Cloudinary is not configured (missing ${missingCloudinary.join(', ')})`,
+    )
+  }
+
+  const maxImageSizeValue = read(env, 'MAX_IMAGE_SIZE_MB')
+  const maxImageSizeMb =
+    maxImageSizeValue === undefined ? DEFAULT_MAX_IMAGE_SIZE_MB : Number(maxImageSizeValue)
+  if (
+    !Number.isFinite(maxImageSizeMb) ||
+    maxImageSizeMb <= 0 ||
+    maxImageSizeMb > MAX_IMAGE_SIZE_MB_LIMIT
+  ) {
+    problems.push(
+      `MAX_IMAGE_SIZE_MB must be a number greater than 0 and at most ${MAX_IMAGE_SIZE_MB_LIMIT}`,
+    )
   }
 
   if (problems.length > 0) throw new ConfigError(problems)
 
-  const cloudinary =
-    missingCloudinary.length === 0
-      ? Object.freeze({
-          cloudName: read(env, 'CLOUDINARY_CLOUD_NAME'),
-          apiKey: read(env, 'CLOUDINARY_API_KEY'),
-          apiSecret: read(env, 'CLOUDINARY_API_SECRET'),
-        })
-      : null
+  const cloudinary = Object.freeze({
+    cloudName: read(env, 'CLOUDINARY_CLOUD_NAME'),
+    apiKey: read(env, 'CLOUDINARY_API_KEY'),
+    apiSecret: read(env, 'CLOUDINARY_API_SECRET'),
+  })
 
   return Object.freeze({
     nodeEnv,
@@ -190,6 +203,10 @@ export function loadConfig(env = process.env) {
     jwt: Object.freeze(jwt),
     cookie: Object.freeze(cookie),
     cloudinary,
+    uploads: Object.freeze({
+      maxImageSizeMb,
+      maxImageSizeBytes: Math.floor(maxImageSizeMb * 1024 * 1024),
+    }),
     warnings: Object.freeze(warnings),
   })
 }

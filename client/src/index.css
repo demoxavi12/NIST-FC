@@ -30,6 +30,14 @@
   --color-accent: #1d4ed8;
   --color-accent-strong: color-mix(in oklab, var(--color-accent) 82%, black);
 
+  /*
+   * Danger: destructive actions (e.g. Delete) and error messages
+   * (docs/UI_DESIGN.md §4). Never the only indicator: always paired with text
+   * or an icon.
+   */
+  --color-danger: #b42318;
+  --color-danger-strong: color-mix(in oklab, var(--color-danger) 85%, black);
+
   /* Text and borders on dark sections (hero, footer, admin top bar). */
   --color-on-dark: #ffffff;
   --color-on-dark-muted: color-mix(in oklab, #ffffff 70%, var(--color-primary));

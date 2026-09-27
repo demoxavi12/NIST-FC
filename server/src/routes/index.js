@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { createAuthRoutes } from './authRoutes.js'
 import healthRoutes from './healthRoutes.js'
+import { createAdminPlayerRoutes, createPlayerRoutes } from './playerRoutes.js'
 
 /**
  * Builds the /api router. Created per app so each app instance has its own
@@ -11,6 +12,8 @@ export function createApiRouter(config) {
 
   router.use('/health', healthRoutes)
   router.use('/auth', createAuthRoutes(config))
+  router.use('/players', createPlayerRoutes(config))
+  router.use('/admin/players', createAdminPlayerRoutes(config))
 
   return router
 }

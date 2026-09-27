@@ -768,19 +768,21 @@ Before deletion, the backend must consider:
 
 If a player is permanently deleted, their references inside memories must be handled safely.
 
-Recommended V1 behavior:
+V1 behavior:
 
 ```text id="4b1qfv"
 Player deletion
       ↓
 Remove player ObjectId from Memory.players arrays
       ↓
-Delete player Cloudinary image
-      ↓
 Delete player document
+      ↓
+Delete player Cloudinary image (best effort)
 ```
 
 This prevents broken references.
+
+The document is deleted before the image. If the Cloudinary deletion fails, the result is an orphaned image, which is logged, rather than a player whose photo is missing. The request still succeeds.
 
 The exact operation should be handled transactionally where practical.
 

@@ -187,7 +187,7 @@ Player
 | `photo.url`      | String   |      Yes | Public Cloudinary image URL    |
 | `photo.publicId` | String   |      Yes | Cloudinary public ID           |
 | `position`       | String   |      Yes | Player's football position     |
-| `batch`          | Number   |      Yes | Academic batch year            |
+| `batch`          | String   |      Yes | Academic batch range           |
 | `branch`         | String   |      Yes | Academic branch                |
 | `bio`            | String   |       No | Short player biography         |
 | `status`         | String   |      Yes | `current` or `former`          |
@@ -198,9 +198,7 @@ Player
 
 ## 4.3 Player Position
 
-The position is stored as a string.
-
-Example values:
+The position is stored as a string and must be one of:
 
 ```text
 Goalkeeper
@@ -209,21 +207,31 @@ Midfielder
 Forward
 ```
 
-The exact set can be expanded later if NIST FC requires more specific positions.
+The set can be expanded later if NIST FC requires more specific positions. That is a product decision, and the backend validation and admin form must be updated together.
 
 ---
 
 ## 4.4 Player Batch
 
-Batch is stored as a simple year.
+Batch is the player's full academic batch range, stored as a string in the format `YYYY-YYYY`.
 
 Example:
 
 ```text
-2023
-2024
-2025
+2023-2027
+2024-2028
+2025-2029
 ```
+
+Rules:
+
+- Required, with surrounding whitespace trimmed.
+- The format must be `YYYY-YYYY`.
+- The second year must be greater than the first.
+- No fixed historical or future range is imposed.
+- Filtering by batch uses an exact string match.
+
+The same format is used everywhere: validation, API responses, admin forms, filters, and public player cards and profiles.
 
 No separate `Batch` collection is required.
 
@@ -293,9 +301,11 @@ Example:
 photo:
 {
   url: "https://res.cloudinary.com/...",
-  publicId: "nist-fc/players/rahul-das"
+  publicId: "nist-fc/players/k3x9q2v7mfa1"
 }
 ```
+
+Cloudinary assigns a random public ID inside the `nist-fc/players` folder. A replaced photo therefore always gets a new URL, and an upload can never overwrite another player's photo.
 
 ---
 
@@ -1172,8 +1182,8 @@ Important rules include:
 - `slug` unique
 - `photo.url` required
 - `photo.publicId` required
-- `position` required
-- `batch` required
+- `position` required, one of the positions in §4.3
+- `batch` required, `YYYY-YYYY` with the second year after the first
 - `branch` required
 - `status` must be `current` or `former`
 
