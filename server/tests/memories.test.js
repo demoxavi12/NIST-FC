@@ -318,9 +318,9 @@ describe('POST /api/memories', () => {
     assert.deepEqual(saved.photos.map((p) => p.publicId), [`${folder}/new-2`, `${folder}/new-3`])
   })
 
-  it('deletes the cover if a gallery upload fails', async (t) => {
+  it('deletes the cover and the folder if a gallery upload fails', async (t) => {
     signedIn(t)
-    const { deleted, uploadImages } = mockCloudinary(t)
+    const { deleted, uploadImages, events } = mockCloudinary(t)
     uploadImages.mock.mockImplementation(async () => {
       const { default: ApiError } = await import('../src/utils/ApiError.js')
       throw new ApiError(502, 'Image upload failed')
@@ -333,11 +333,13 @@ describe('POST /api/memories', () => {
     assert.equal(create.mock.callCount(), 0)
     assert.equal(deleted.mock.callCount(), 1)
     assert.match(deleted.mock.calls[0].arguments[0], /\/new-1$/)
+    // The folder goes after its images.
+    assert.match(events.at(-1), /^delete folder nist-fc\/memories\/[a-f\d]{24}$/)
   })
 
-  it('deletes every uploaded image if saving fails', async (t) => {
+  it('deletes every uploaded image and the folder if saving fails', async (t) => {
     signedIn(t)
-    const { deleted } = mockCloudinary(t)
+    const { deleted, folderDeleted, events } = mockCloudinary(t)
     t.mock.method(console, 'error', () => {})
     t.mock.method(Memory, 'find', () => query([]))
     t.mock.method(Memory, 'create', async () => {
@@ -346,6 +348,10 @@ describe('POST /api/memories', () => {
 
     assert.equal((await post(memoryForm({}, { photos: 2 }))).status, 500)
     assert.deepEqual(deleted.mock.calls.map((c) => c.arguments[0].split('/').pop()).sort(), ['new-1', 'new-2', 'new-3'])
+    const folder = folderDeleted.mock.calls[0].arguments[0]
+    assert.equal(folderDeleted.mock.callCount(), 1)
+    assert.equal(deleted.mock.calls[0].arguments[0].startsWith(`${folder}/`), true)
+    assert.equal(events.at(-1), `delete folder ${folder}`)
   })
 })
 
