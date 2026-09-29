@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
-import { StrictMode, useEffect } from 'react'
+import { StrictMode, useLayoutEffect } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import useAuth from '../hooks/useAuth'
 import { setSessionExpiredHandler } from '../services/api'
@@ -17,10 +17,12 @@ const ADMIN = { id: '1', name: 'NIST FC Admin', email: 'admin@example.com', role
 const apiError = (status, message = 'Failed') => Object.assign(new Error(message), { status })
 
 // The latest auth value, captured after each render for the tests to act on.
+// A layout effect runs in the same commit that updates the DOM, so the probe
+// is never behind the status text that `waitFor` checks.
 const probe = { auth: null }
 function Probe() {
   const auth = useAuth()
-  useEffect(() => {
+  useLayoutEffect(() => {
     probe.auth = auth
   })
   return <p data-testid="status">{auth.status}</p>
