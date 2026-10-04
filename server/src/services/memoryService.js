@@ -202,10 +202,17 @@ async function deleteImagesQuietly(images) {
   await Promise.all(images.map((img) => cloudinaryService.deleteImageQuietly(img.publicId)))
 }
 
+/** Undoes a failed create: deletes its uploaded images, then its folder. */
+async function rollbackCreate(images, folder) {
+  await deleteImagesQuietly(images)
+  await cloudinaryService.deleteFolderQuietly(folder)
+}
+
 /**
  * Creates a memory: upload the cover and gallery (all-or-nothing), then save.
- * If saving fails, every uploaded image is deleted. The id is chosen first so
- * the images go straight into the memory's own folder.
+ * If saving fails, every uploaded image and the memory's folder are deleted.
+ * The id is chosen first so the images go straight into the memory's own
+ * folder.
  */
 export async function createMemory(fields, files) {
   await assertPlayersExist(fields.players)
@@ -219,7 +226,7 @@ export async function createMemory(fields, files) {
   try {
     photos = await cloudinaryService.uploadImages(buffersOf(files.photos), { folder })
   } catch (error) {
-    await cloudinaryService.deleteImageQuietly(coverImage.publicId)
+    await rollbackCreate([coverImage], folder)
     throw error
   }
 
@@ -234,7 +241,7 @@ export async function createMemory(fields, files) {
       }
     }
   } catch (error) {
-    await deleteImagesQuietly([coverImage, ...photos])
+    await rollbackCreate([coverImage, ...photos], folder)
     throw error
   }
 

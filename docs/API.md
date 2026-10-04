@@ -743,7 +743,7 @@ The server generates the `slug` from the title (`inter-college-final`, then `int
 
 The date is a calendar day stored as `00:00 UTC` and displayed without any time-zone shift.
 
-Images are uploaded to Cloudinary in the memory's own folder `nist-fc/memories/<memoryId>/` with random public IDs, stored at most 1600×1600. Uploads are all-or-nothing: if any image or the save fails, every image uploaded by the request is deleted.
+Images are uploaded to Cloudinary in the memory's own folder `nist-fc/memories/<memoryId>/` with random public IDs, stored at most 1600×1600. Uploads are all-or-nothing: if any image or the save fails, every image uploaded by the request is deleted, and so is the new memory's folder.
 
 ### Success
 
