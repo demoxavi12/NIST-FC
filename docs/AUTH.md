@@ -650,8 +650,11 @@ PATCH  /api/memories/:id
 DELETE /api/memories/:id
 
 POST   /api/timeline
+PATCH  /api/timeline/reorder
 PATCH  /api/timeline/:id
 DELETE /api/timeline/:id
+GET    /api/admin/timeline
+GET    /api/admin/timeline/:id
 
 POST   /api/founders
 PATCH  /api/founders/:id
@@ -680,7 +683,6 @@ GET /api/memories
 GET /api/memories/:slug
 
 GET /api/timeline
-GET /api/timeline/:id
 
 GET /api/founders
 GET /api/founders/:slug
@@ -793,16 +795,20 @@ The exact operation should be handled transactionally where practical.
 When a memory is deleted:
 
 ```text id="0txb4g"
+Unlink the memory from timeline events (memory = null; the events are kept)
+      ↓
 Delete memory document
       ↓
 Delete its cover and gallery images from Cloudinary
       ↓
 Delete its Cloudinary folder (nist-fc/memories/<memoryId>)
-      ↓
-Remove memory references from timeline events
 ```
 
-Image and folder deletions are best-effort: failures are logged (never with credentials) and do not fail the request. Timeline references are cleared once timeline events exist (Phase 6).
+Timeline references are cleared **first**. If that step fails, the request fails and nothing is deleted, so no timeline event can ever point at a deleted memory. If deleting the memory document then fails, the memory remains and has only lost its timeline links, which an admin can restore.
+
+Image and folder deletions are best-effort: failures are logged (never with credentials) and do not fail the request.
+
+Reads are also defensive: a timeline event whose memory is missing (for example linked while the memory was being deleted) or unpublished is shown with no memory link.
 
 Only authenticated administrators can delete memories, and deletion is permanent. Unpublishing hides a memory without deleting it.
 
@@ -824,6 +830,8 @@ When a timeline event is deleted:
 
 ```text id="m0k3ax"
 Delete timeline event
+      ↓
+Delete its image from Cloudinary (best-effort)
       ↓
 Memory remains
 ```

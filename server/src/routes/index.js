@@ -3,6 +3,7 @@ import { createAuthRoutes } from './authRoutes.js'
 import healthRoutes from './healthRoutes.js'
 import { createAdminMemoryRoutes, createMemoryRoutes } from './memoryRoutes.js'
 import { createAdminPlayerRoutes, createPlayerRoutes } from './playerRoutes.js'
+import { createAdminTimelineRoutes, createTimelineRoutes } from './timelineRoutes.js'
 
 /**
  * Builds the /api router. Created per app so each app instance has its own
@@ -17,6 +18,8 @@ export function createApiRouter(config) {
   router.use('/admin/players', createAdminPlayerRoutes(config))
   router.use('/memories', createMemoryRoutes(config))
   router.use('/admin/memories', createAdminMemoryRoutes(config))
+  router.use('/timeline', createTimelineRoutes(config))
+  router.use('/admin/timeline', createAdminTimelineRoutes(config))
 
   return router
 }

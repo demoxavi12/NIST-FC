@@ -562,15 +562,15 @@ TimelineEvent
 | Field         | Type     | Required | Description                 |
 | ------------- | -------- | -------: | --------------------------- |
 | `_id`         | ObjectId |      Yes | MongoDB document ID         |
-| `title`       | String   |      Yes | Event title                 |
-| `date`        | Date     |       No | Exact event date if known   |
-| `year`        | Number   |      Yes | Event year                  |
-| `description` | String   |       No | Event description           |
-| `image`       | Object   |       No | Cloudinary image            |
-| `category`    | String   |      Yes | Event category              |
-| `memory`      | ObjectId |       No | Optional related memory     |
-| `order`       | Number   |      Yes | Manual display order        |
-| `published`   | Boolean  |      Yes | Public visibility           |
+| `title`       | String   |      Yes | Event title, 1–150 characters                                        |
+| `date`        | Date     |       No | Exact calendar day if known (00:00 UTC); must fall in `year`; `null` otherwise |
+| `year`        | Number   |      Yes | Event year, whole number 1900–2100                                   |
+| `description` | String   |       No | Plain-text description, max 2000 characters                          |
+| `image`       | Object   |       No | Cloudinary image `{ url, publicId }` or `null`                        |
+| `category`    | String   |      Yes | One of the categories in §6.3                                        |
+| `memory`      | ObjectId |       No | Optional related memory (`null` when none)                           |
+| `order`       | Number   |      Yes | Display position, positive whole number managed by the server        |
+| `published`   | Boolean  |      Yes | Public visibility; defaults to `false` (draft)                       |
 | `createdAt`   | Date     |      Yes | Creation timestamp          |
 | `updatedAt`   | Date     |      Yes | Last modification timestamp |
 
@@ -590,7 +590,7 @@ event
 other
 ```
 
-The category list may be expanded later.
+The category list may be expanded later. The admin interface shows them capitalised (Founding, Tournament, …).
 
 ---
 
@@ -614,9 +614,17 @@ order: 2
 order: 3
 ```
 
-Lower values appear earlier in the configured timeline sequence.
+Lower values appear earlier in the configured timeline sequence. Ties (which reordering never creates) are broken by `_id`, so the order is always deterministic.
 
-The admin panel must allow administrators to reorder timeline events.
+`order` is managed by the server:
+
+- A new event is placed chronologically: directly after the last event, in the current display order, that is earlier in time (an earlier year; an undated event of the same year; or, for a dated event, a same-year event with an earlier or equal date). Later events move down one place.
+- Editing an event's year or date does not move it.
+- Administrators reorder events with Move up / Move down and save the whole order at once (`PATCH /api/timeline/reorder`), which renumbers every event `1..N`.
+- Deleting an event can leave a gap in the stored values; gaps are harmless because only the relative order is used.
+- Order changes do not change `updatedAt`.
+
+The Timeline Event schema uses optimistic concurrency (`optimisticConcurrency: true`), like memories: a save based on an outdated copy fails with `409` instead of overwriting another admin's changes.
 
 ---
 
@@ -642,7 +650,9 @@ Memory:
 "University Tournament 2023"
 ```
 
-A timeline event does not require a memory.
+A timeline event does not require a memory. Several timeline events may link the same memory. A draft memory may be linked, but the public timeline shows the link only while the memory is published.
+
+When a memory is deleted, every event linking to it is first unlinked (`memory = null`) and kept (see AUTH.md §31).
 
 ---
 
@@ -887,8 +897,10 @@ nist-fc/memories/<memoryId>/<randomId>
 Each memory has its own folder, named after its `_id`, holding its cover and gallery. Image public IDs are random.
 
 ```text
-nist-fc/timeline/founding
+nist-fc/timeline/<randomId>
 ```
+
+Timeline images use one flat folder with random public IDs.
 
 ```text
 nist-fc/founders/founder-name
@@ -1021,6 +1033,7 @@ order      → indexed
 year       → indexed
 published  → indexed
 memory     → indexed
+{ published: 1, order: 1, _id: 1 } → compound (public timeline)
 ```
 
 ---
@@ -1165,7 +1178,7 @@ Timeline events can be permanently deleted by authorized administrators when nec
 
 If the event references a memory, deleting the timeline event should **not automatically delete the memory**.
 
-The memory remains independent.
+The memory remains independent. The event's image is deleted from Cloudinary after the event (best-effort).
 
 ---
 
@@ -1214,11 +1227,13 @@ Important rules include:
 
 ### Timeline Events
 
-- `title` required
-- `year` required
-- `category` required
-- `order` required
-- referenced memory must be a valid ObjectId when provided
+- `title` required, at most 150 characters
+- `year` required, whole number 1900–2100
+- `date`, when present, must fall in `year`
+- `description` at most 2000 characters
+- `category` required, one of the V1 categories
+- `order` required, positive whole number (server-managed)
+- referenced memory must be an existing memory when provided
 
 ### Founders
 

@@ -6,6 +6,7 @@ import { createApp } from '../src/app.js'
 import Admin from '../src/models/Admin.js'
 import Memory from '../src/models/Memory.js'
 import Player from '../src/models/Player.js'
+import TimelineEvent from '../src/models/TimelineEvent.js'
 import { cloudinaryService } from '../src/services/cloudinaryService.js'
 import { AUTH_ENV, startServer, testConfig } from './helpers.js'
 
@@ -520,12 +521,18 @@ describe('DELETE /api/memories/:id', () => {
     assert.equal((await del(new mongoose.Types.ObjectId())).status, 404)
   })
 
-  it('deletes the memory, then its cover, every photo and its folder', async (t) => {
+  it('unlinks timeline events, then deletes the memory, its cover, every photo and its folder', async (t) => {
     signedIn(t)
     const events = []
     mockCloudinary(t, events)
     const memory = memoryDoc()
     t.mock.method(Memory, 'findById', () => query(memory))
+    const unlink = t.mock.method(TimelineEvent, 'updateMany', async (filter, update) => {
+      events.push(`unlink timeline ${filter.memory}`)
+      assert.deepEqual(update, { $set: { memory: null } })
+      return { modifiedCount: 2 }
+    })
+    const eventDelete = t.mock.method(TimelineEvent, 'deleteMany', async () => {})
     t.mock.method(Memory, 'deleteOne', async (filter) => {
       events.push(`delete memory ${filter._id}`)
       return { deletedCount: 1 }
@@ -538,6 +545,7 @@ describe('DELETE /api/memories/:id', () => {
     assert.deepEqual(body, { success: true, data: null, message: 'Memory deleted successfully' })
     const folder = `nist-fc/memories/${memory._id}`
     assert.deepEqual(events, [
+      `unlink timeline ${memory._id}`,
       `delete memory ${memory._id}`,
       `delete ${folder}/cover`,
       `delete ${folder}/p1`,
@@ -545,5 +553,26 @@ describe('DELETE /api/memories/:id', () => {
       `delete folder ${folder}`,
     ])
     assert.equal(playerDelete.mock.callCount(), 0, 'players are never deleted')
+    assert.equal(unlink.mock.callCount(), 1)
+    assert.equal(eventDelete.mock.callCount(), 0, 'timeline events are kept')
+  })
+
+  it('deletes nothing if unlinking timeline events fails', async (t) => {
+    signedIn(t)
+    const { deleted, folderDeleted } = mockCloudinary(t)
+    t.mock.method(console, 'error', () => {})
+    t.mock.method(Memory, 'findById', () => query(memoryDoc()))
+    t.mock.method(TimelineEvent, 'updateMany', async () => {
+      throw new Error('database unavailable')
+    })
+    const memoryDelete = t.mock.method(Memory, 'deleteOne', async () => {})
+
+    const { status, body } = await json(await del(new mongoose.Types.ObjectId()))
+
+    assert.equal(status, 500)
+    assert.equal(body.success, false)
+    assert.equal(memoryDelete.mock.callCount(), 0)
+    assert.equal(deleted.mock.callCount(), 0)
+    assert.equal(folderDeleted.mock.callCount(), 0)
   })
 })

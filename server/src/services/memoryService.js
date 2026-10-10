@@ -5,6 +5,7 @@ import ApiError from '../utils/ApiError.js'
 import { escapeRegExp } from '../utils/slugify.js'
 import { isDuplicateSlugError, uniqueSlug } from '../utils/uniqueSlug.js'
 import { cloudinaryService } from './cloudinaryService.js'
+import { unlinkMemoryFromTimeline } from './timelineService.js'
 
 export const MEMORY_FOLDER_ROOT = 'nist-fc/memories'
 // Latest → oldest; the id breaks ties between memories on the same day, so
@@ -325,22 +326,21 @@ export async function updateMemory(id, fields, files = {}) {
 }
 
 /**
- * Removes the memory from timeline events that reference it (docs/AUTH.md
- * §31). Timeline events are implemented in Phase 6; until then nothing can
- * reference a memory.
- */
-async function removeMemoryFromTimeline() {}
-
-/**
- * Permanently deletes a memory (admins can unpublish instead). The memory is
- * deleted before its images, so a Cloudinary failure can only leave logged
- * orphan images, never a memory with missing images. Players are untouched.
+ * Permanently deletes a memory (admins can unpublish instead), in this order
+ * (docs/AUTH.md §31):
+ * 1. Unlink it from timeline events (the events are kept). If this fails,
+ *    nothing is deleted, so no event can point at a deleted memory.
+ * 2. Delete the memory document. If this fails, the memory remains and only
+ *    its timeline links are lost.
+ * 3. Delete its images and folder (best-effort): a Cloudinary failure can
+ *    only leave logged orphan images, never a memory with missing images.
+ * Players are untouched.
  */
 export async function deleteMemory(id) {
   const memory = await Memory.findById(id).lean()
   if (!memory) throw notFound()
 
-  await removeMemoryFromTimeline(memory._id)
+  await unlinkMemoryFromTimeline(memory._id)
   await Memory.deleteOne({ _id: memory._id })
   await deleteImagesQuietly([memory.coverImage, ...memory.photos])
   await cloudinaryService.deleteFolderQuietly(memoryFolder(memory._id))

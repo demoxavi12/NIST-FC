@@ -1033,7 +1033,7 @@ Desktop:
       University Achievement
 ```
 
-The visual timeline can use a central line on desktop.
+The visual timeline uses a central line with cards alternating left and right from 1024px.
 
 Mobile should simplify to:
 
@@ -1078,11 +1078,13 @@ A major moment in the team's journey.
 
 Timeline events may link to an associated memory.
 
-If no memory exists:
+If no memory exists, or the linked memory is not published:
 
 Do not show a broken or disabled-looking link.
 
 Simply display the event.
+
+The link reads "View memory" with an arrow, and its accessible name includes the memory title.
 
 ---
 
@@ -1374,7 +1376,18 @@ Primary action:
 + Add Event
 ```
 
-Admins should be able to drag and reorder events.
+Admins reorder events in a dedicated **Reorder** mode (not drag and drop, so it works with a keyboard, a screen reader and touch):
+
+- Each event has **Move up** and **Move down** buttons; impossible moves (top/bottom) are disabled.
+- Each move is announced through an `aria-live` region, e.g. "Champions moved to position 2 of 8.", and focus stays on the moved event.
+- **Save order** sends the complete order in one request; **Cancel** restores the saved order.
+- Leaving with an unsaved order asks for confirmation.
+- If the timeline changed meanwhile (409), the admin is told to reload and reorder again.
+- Reordering is available when all events are shown (not while a Published/Draft filter is applied).
+
+The list shows each event's position, title, year, category, linked memory (a linked draft memory is labelled "Draft") and published state, as a table from 1024px and stacked cards below. Deleting an event explains that its image is deleted but the linked memory is not affected.
+
+The event form sets the year automatically when an exact date is picked; typing a year never changes the date. The memory picker searches all memories, drafts labelled "Draft", with a "No memory" option.
 
 ---
 
