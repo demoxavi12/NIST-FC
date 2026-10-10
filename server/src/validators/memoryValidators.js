@@ -25,16 +25,16 @@ export const DEFAULT_PUBLIC_PAGE_SIZE = 12
 export const DEFAULT_ADMIN_PAGE_SIZE = 20
 export const MAX_PAGE_SIZE = 48
 const MAX_PLAYERS = 100
-const OBJECT_ID = /^[a-f0-9]{24}$/i
+export const OBJECT_ID = /^[a-f0-9]{24}$/i
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
 const dedupe = (values) => [...new Set(values)]
 
 /**
  * A calendar day "YYYY-MM-DD" → that day at 00:00 UTC. Impossible dates such
- * as 2025-02-30 are rejected.
+ * as 2025-02-30 are rejected. Shared with timeline validators.
  */
-const dateField = JoiBase.string()
+export const dateField = JoiBase.string()
   .trim()
   .custom((value, helpers) => {
     const match = DATE_PATTERN.exec(value)

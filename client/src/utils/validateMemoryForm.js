@@ -3,7 +3,7 @@ import { validatePhoto } from './validatePlayerForm'
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
-function isCalendarDate(value) {
+export function isCalendarDate(value) {
   const match = DATE_PATTERN.exec(value)
   if (!match) return false
   const [, year, month, day] = match.map(Number)

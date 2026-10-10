@@ -50,21 +50,22 @@ function withUploadErrors(upload, { maxImageSizeMb, tooManyFilesMessage, invalid
 }
 
 /**
- * Parses an optional single `photo` file from multipart/form-data into memory
- * (req.file). The file is never written to disk. Requests that are not
+ * Parses an optional single image file from multipart/form-data into memory
+ * (req.file). The field is `photo` for players and `image` for timeline
+ * events. The file is never written to disk. Requests that are not
  * multipart pass through unchanged. Must run after requireAuth so
  * unauthenticated uploads are never parsed.
  */
-export function createPhotoUpload({ maxImageSizeBytes, maxImageSizeMb }) {
+export function createPhotoUpload({ maxImageSizeBytes, maxImageSizeMb }, { fieldName = 'photo' } = {}) {
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: maxImageSizeBytes, files: 1, fields: 20 },
     fileFilter: photoFileFilter,
-  }).single('photo')
+  }).single(fieldName)
 
   return withUploadErrors(upload, {
     maxImageSizeMb,
-    invalidMessage: 'Invalid upload: send one image in the "photo" field',
+    invalidMessage: `Invalid upload: send one image in the "${fieldName}" field`,
   })
 }
 

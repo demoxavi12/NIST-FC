@@ -852,56 +852,72 @@ Image changes go through `POST`/`PATCH` on `/api/memories` (upload `coverImage`/
 
 ## GET `/api/timeline`
 
-Returns published timeline events.
+Returns every published timeline event, in the admin-defined display order: `order` ascending, then `_id`. The timeline is one page, so this list is **not paginated**.
 
-Events are ordered using the manually configured:
-
-```text
-order
-```
-
-field.
+Draft events (`published = false`) never appear in a public response.
 
 ### Response
 
 ```json
 {
   "success": true,
-  "data": [],
+  "data": [
+    {
+      "id": "...",
+      "title": "Team Founded",
+      "year": 2022,
+      "date": "2022-08-15T00:00:00.000Z",
+      "description": "...",
+      "image": { "url": "https://res.cloudinary.com/...", "publicId": "nist-fc/timeline/..." },
+      "category": "founding",
+      "memory": { "title": "First Practice", "slug": "first-practice", "coverImage": { "url": "...", "publicId": "..." } }
+    }
+  ],
   "message": "Timeline retrieved successfully"
 }
 ```
 
----
+- `date` is `null` when only the year is known. When set, it is a calendar day (00:00 UTC) in `year`.
+- `image` is `null` when the event has no image.
+- `memory` is a short summary of the linked memory **only while that memory exists and is published**. Otherwise (no link, a draft memory, or a memory deleted in the meantime) it is `null`, so the public site never links to a draft.
 
-## GET `/api/timeline/:id`
-
-Returns one timeline event.
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "event": {},
-    "memory": null
-  },
-  "message": "Timeline event retrieved successfully"
-}
-```
+There is no public single-event endpoint in V1; the timeline page shows every event.
 
 ---
 
 # 16. Admin Timeline API
 
-All endpoints require authentication.
+All endpoints in this section require authentication.
 
 ---
 
 ## GET `/api/admin/timeline`
 
-Returns all timeline events, including unpublished events.
+Returns all timeline events, including drafts, in display order (not paginated).
+
+| Parameter   | Rules                                            |
+| ----------- | ------------------------------------------------ |
+| `published` | Optional; `true` (published) or `false` (drafts) |
+
+Each event has the public fields plus `order`, `published`, `createdAt` and `updatedAt`. `memory` is `{ id, title, slug, published }` (drafts included, so admins can see a linked draft) or `null`.
+
+---
+
+## GET `/api/admin/timeline/:id`
+
+Returns one event (published or draft) in the admin shape, for the edit form.
+
+```json
+{
+  "success": true,
+  "data": {
+    "event": {}
+  },
+  "message": "Timeline event retrieved successfully"
+}
+```
+
+Unknown IDs return `404 Timeline event not found`.
 
 ---
 
@@ -911,31 +927,76 @@ Creates a timeline event.
 
 ### Request
 
-```text
-title
-date
-year
-description
-category
-memory
-order
-published
-image
-```
+`multipart/form-data` (or JSON without an image):
+
+| Field         | Required | Rules                                                                                |
+| ------------- | -------- | ------------------------------------------------------------------------------------ |
+| `title`       | Yes      | 1–150 characters                                                                     |
+| `year`        | Yes      | Whole number, 1900–2100                                                              |
+| `date`        | No       | Calendar day `YYYY-MM-DD` in `year`; empty means none                                |
+| `description` | No       | Plain text, max 2000 characters                                                      |
+| `category`    | Yes      | `founding`, `tournament`, `achievement`, `milestone`, `team`, `event` or `other`     |
+| `memory`      | No       | ID of an existing memory (draft or published); empty means none                      |
+| `published`   | No       | `true` or `false` (default `false`: new events are drafts)                           |
+| `image`       | No       | One JPEG, PNG or WEBP file, at most `MAX_IMAGE_SIZE_MB`                              |
+
+`order` is **not** accepted: the server places the new event chronologically. It goes directly after the last event (in the current display order) that is earlier in time — an earlier year, an event of the same year without a date, or, when the new event has a date, one of the same year with an earlier or equal date — and later events move down one place. Admins can reorder afterwards.
+
+Several events may link the same memory.
+
+The image is uploaded to Cloudinary (folder `nist-fc/timeline`, random public ID, stored at most 1600×1600). If saving fails, the uploaded image is deleted.
+
+### Success
+
+HTTP `201` with `data.event` and the message `Timeline event created successfully`.
+
+### Errors
+
+| Status | Cause                                                                                          |
+| -----: | ---------------------------------------------------------------------------------------------- |
+|  `400` | Invalid fields, a date outside the year (`error.date`), an unknown memory (`error.memory`), or an unsupported file type |
+|  `401` | Not authenticated                                                                              |
+|  `413` | Image larger than `MAX_IMAGE_SIZE_MB`                                                          |
+|  `502` | Cloudinary rejected or failed the upload (`Image upload failed`)                               |
 
 ---
 
 ## PATCH `/api/timeline/:id`
 
-Updates a timeline event.
+Updates a timeline event. Only supplied fields change; at least one field or an image is required.
+
+Possible fields:
+
+```text
+title
+year
+date
+description
+category
+memory
+published
+image
+removeImage
+expectedUpdatedAt
+```
+
+- `date: ""` clears the date and `memory: ""` unlinks the memory. A date is checked against the new or the stored year.
+- A new `image` replaces the current one; `removeImage: true` removes it. Sending both is rejected (`400`).
+- Changing `year` or `date` **does not** change the event's position; use reorder.
+- `expectedUpdatedAt` is the `updatedAt` the form was loaded with. If the event has changed since, the request fails with `409 This timeline event was changed by someone else. Reload and try again.` This is checked before any upload. Concurrent saves are also detected by the document version (optimistic concurrency) and return `409`; an image uploaded by the failed request is deleted.
+- Replaced or removed images are deleted from Cloudinary only after the event is saved; a failed deletion is logged and does not fail the request.
+
+Send `multipart/form-data` when uploading an image, or JSON otherwise (for example `{ "published": true }`).
+
+Errors are the same as for `POST`, plus `404 Timeline event not found` and `409` (stale edit).
 
 ---
 
 ## DELETE `/api/timeline/:id`
 
-Deletes a timeline event.
+Permanently deletes a timeline event. To hide an event instead, unpublish it.
 
-Deleting a timeline event must not automatically delete its associated memory.
+The event document is deleted first, then its image (best-effort; a failure is logged). Deleting a timeline event **never** deletes its linked memory.
 
 ### Success
 
@@ -945,7 +1006,7 @@ HTTP `200`:
 {
   "success": true,
   "data": null,
-  "message": "Resource deleted successfully"
+  "message": "Timeline event deleted successfully"
 }
 ```
 
@@ -953,34 +1014,32 @@ HTTP `200`:
 
 # 17. Timeline Reordering
 
-The admin interface must support manual timeline ordering.
-
-Recommended endpoint:
+The admin interface supports manual timeline ordering.
 
 ```text
 PATCH /api/timeline/reorder
 ```
+
+Authentication required. This route is matched before `PATCH /api/timeline/:id`.
 
 ### Request
 
 ```json
 {
   "items": [
-    {
-      "id": "event-id-1",
-      "order": 1
-    },
-    {
-      "id": "event-id-2",
-      "order": 2
-    },
-    {
-      "id": "event-id-3",
-      "order": 3
-    }
+    { "id": "event-id-1", "order": 1 },
+    { "id": "event-id-2", "order": 2 },
+    { "id": "event-id-3", "order": 3 }
   ]
 }
 ```
+
+- `items` must contain **every** timeline event (published and draft) exactly once.
+- Orders must be whole numbers forming exactly `1..N` (no gaps or duplicates). Invalid IDs, duplicate IDs or duplicate orders return `400`.
+- If the set of events no longer matches (an event was added or deleted since the admin loaded the list), nothing is changed and the request fails with `409 The timeline was changed by someone else. Reload and try again.`
+- The new order is written in a single `bulkWrite`. Order changes do not modify `updatedAt`, so they never make an open edit form stale.
+
+Stored `order` values may have gaps (for example after a deletion); only their relative order matters. Saving a reorder renumbers every event `1..N`.
 
 ### Response
 
@@ -1405,13 +1464,13 @@ DELETE /api/memories/:id
 
 ```text
 GET    /api/timeline
-GET    /api/timeline/:id
 
 GET    /api/admin/timeline
+GET    /api/admin/timeline/:id
 POST   /api/timeline
+PATCH  /api/timeline/reorder
 PATCH  /api/timeline/:id
 DELETE /api/timeline/:id
-PATCH  /api/timeline/reorder
 ```
 
 ## Founders
@@ -1660,7 +1719,7 @@ date descending
 Default:
 
 ```text
-order ascending
+order ascending, then _id
 ```
 
 ### Founders

@@ -344,7 +344,8 @@ function AdminMemories() {
         onCancel={() => setConfirm(null)}
       >
         This will permanently remove {target?.title}, its cover image and all of its gallery photos.
-        This cannot be undone. To hide it instead, unpublish it.
+        Timeline events linked to it are kept but unlinked. This cannot be undone. To hide it
+        instead, unpublish it.
       </ConfirmDialog>
     </div>
   )

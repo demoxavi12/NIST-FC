@@ -443,6 +443,8 @@ Timeline events may optionally reference one memory.
 
 Deleting a timeline event must not automatically delete its memory.
 
+`order` is server-managed: new events are placed chronologically, admins reorder with Move up / Move down and save the whole order (`PATCH /api/timeline/reorder`). Lists are unpaginated. Limits: title 150, description 2000, year 1900–2100; an optional date must fall in the year. A draft memory may be linked but is never linked publicly. Deleting a memory first unlinks it from timeline events (which are kept). See `docs/DATABASE.md` §6 and `docs/AUTH.md` §31.
+
 ---
 
 # 15. Founder Rules
